@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Disaster Relief Resource Management System{% endblock %}
+{% block page_title_breadcrumb %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-chart-pie" style="color: var(--primary-500);"></i>
+            Relief Operations Overview
+        </h1>
+        <div class="page-subtitle">Centralized relational database tracking disaster events, victims, shelter hubs, supplies & field teams.</div>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <button class="btn btn-emerald" data-modal-open="quick-dist-modal">
+            <i class="fas fa-plus-circle"></i> Quick Distribute
+        </button>
+        <a href="{{ url_for('reports') }}" class="btn btn-secondary">
+            <i class="fas fa-file-invoice"></i> Academic SQL Reports
+        </a>
+    </div>
+</div>
+
+<!-- KPI Summary Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card rose">
+        <div class="kpi-header">
+            <span class="kpi-label">Active Disasters</span>
+            <div class="kpi-icon-wrap" style="color: var(--accent-rose);"><i class="fas fa-house-crack"></i></div>
+        </div>
+        <div class="kpi-value">{{ stats.disasters or 0 }}</div>
+        <div class="kpi-footer">Incidents logged across zones</div>
+    </div>
+
+    <div class="kpi-card amber">
+        <div class="kpi-header">
+            <span class="kpi-label">Registered Victims</span>
+            <div class="kpi-icon-wrap" style="color: var(--accent-amber);"><i class="fas fa-users"></i></div>
+        </div>
+        <div class="kpi-value">{{ stats.victims or 0 }}</div>
+        <div class="kpi-footer">Persons needing assistance</div>
+    </div>
+
+    <div class="kpi-card cyan">
+        <div class="kpi-header">
+            <span class="kpi-label">Relief Centres</span>
+            <div class="kpi-icon-wrap" style="color: var(--accent-cyan);"><i class="fas fa-tents"></i></div>
+        </div>
+        <div class="kpi-value">{{ stats.centers or 0 }}</div>
+        <div class="kpi-footer">Active storage & shelter hubs</div>
+    </div>
+
+    <div class="kpi-card purple">
+        <div class="kpi-header">
+            <span class="kpi-label">Active Volunteers</span>
+            <div class="kpi-icon-wrap" style="color: var(--accent-purple);"><i class="fas fa-hands-holding-child"></i></div>
+        </div>
+        <div class="kpi-value">{{ stats.volunteers or 0 }}</div>
+        <div class="kpi-footer">Medical, rescue & food staff</div>
+    </div>
+
+    <div class="kpi-card emerald">
+        <div class="kpi-header">
+            <span class="kpi-label">Available Stock</span>
+            <div class="kpi-icon-wrap" style="color: var(--accent-emerald);"><i class="fas fa-boxes-stacked"></i></div>
+        </div>
+        <div class="kpi-value">{{ "{:,}".format(stats.total_stock or 0) }}</div>
+        <div class="kpi-footer">{{ stats.resources or 0 }} unique resource items</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-label">Total Distributed</span>
+            <div class="kpi-icon-wrap" style="color: var(--primary-500);"><i class="fas fa-truck-ramp-box"></i></div>
+        </div>
+        <div class="kpi-value">{{ "{:,}".format(stats.total_distributed or 0) }}</div>
+        <div class="kpi-footer">In {{ stats.distributions or 0 }} distribution batches</div>
+    </div>
+</div>
+
+<!-- Charts & Visual Analytics -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Resource Inventory Breakdown Chart -->
+    <div class="card-panel">
+        <div class="card-title">
+            <span><i class="fas fa-boxes-packing" style="color: var(--accent-cyan); margin-right: 0.5rem;"></i> Resource Stock Levels</span>
+            <a href="{{ url_for('resources_list') }}" class="btn btn-secondary btn-sm">View All</a>
+        </div>
+        <div style="height: 240px; position: relative;">
+            <canvas id="resourceChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Disaster & Volunteer Breakdown Chart -->
+    <div class="card-panel">
+        <div class="card-title">
+            <span><i class="fas fa-chart-donut" style="color: var(--accent-purple); margin-right: 0.5rem;"></i> Disasters by Severity & Type</span>
+            <a href="{{ url_for('disasters_list') }}" class="btn btn-secondary btn-sm">View Disasters</a>
+        </div>
+        <div style="height: 240px; position: relative;">
+            <canvas id="disasterChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Tables Grid: Recent Disasters & Recent Distributions -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem;">
+    <!-- Recent Disasters -->
+    <div class="card-panel">
+        <div class="card-title">
+            <span><i class="fas fa-triangle-exclamation" style="color: var(--accent-rose); margin-right: 0.5rem;"></i> Recent Disasters</span>
+            <a href="{{ url_for('disasters_list') }}" class="btn btn-secondary btn-sm">Manage</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Location</th>
+                        <th>Date</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in recent_disasters %}
+                    <tr>
+                        <td><span class="badge badge-pk">{{ d.Disaster_ID }}</span></td>
+                        <td style="font-weight: 600;">{{ d.Type }}</td>
+                        <td>{{ d.Location or 'N/A' }}</td>
+                        <td>{{ d.Date|format_date }}</td>
+                        <td>
+                            {% set s = (d.Severity_Level or '')|lower %}
+                            <span class="badge {% if s == 'critical' %}badge-critical{% elif s == 'high' %}badge-high{% elif s == 'moderate' %}badge-moderate{% else %}badge-low{% endif %}">
+                                {{ d.Severity_Level or 'Standard' }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted);">No disaster records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Distributions -->
+    <div class="card-panel">
+        <div class="card-title">
+            <span><i class="fas fa-clock-rotate-left" style="color: var(--accent-emerald); margin-right: 0.5rem;"></i> Latest Distributions</span>
+            <a href="{{ url_for('distributions_list') }}" class="btn btn-secondary btn-sm">View All</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>Dist ID</th>
+                        <th>Victim</th>
+                        <th>Resource</th>
+                        <th>Qty</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dist in recent_distributions %}
+                    <tr>
+                        <td><span class="badge badge-pk">{{ dist.Distribution_ID }}</span></td>
+                        <td style="font-weight: 500;">{{ dist.Victim_Name }}</td>
+                        <td><span class="badge badge-fk">{{ dist.Resource_Name }}</span></td>
+                        <td style="font-weight: 700; color: var(--accent-emerald);">{{ dist.Quantity_Distributed }}</td>
+                        <td>{{ dist.Date|format_date }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted);">No distributions recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Distribution Modal -->
+<div class="modal-backdrop" id="quick-dist-modal">
+    <div class="modal-content">
+        <form action="{{ url_for('distribution_add') }}" method="POST">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-hand-holding-heart" style="color: var(--accent-emerald); margin-right: 0.5rem;"></i> Quick Resource Distribution</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Distribution ID <span class="req">*</span></label>
+                    <input type="number" name="Distribution_ID" class="form-control" placeholder="e.g. 710" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Victim (Recipient) <span class="req">*</span></label>
+                    <select name="Victim_ID" class="form-select" required>
+                        <option value="">-- Select Victim --</option>
+                        {% for v in all_victims %}
+                        <option value="{{ v.Victim_ID }}">{{ v.Victim_ID }} - {{ v.Name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Resource Item <span class="req">*</span></label>
+                    <select name="Resource_ID" class="form-select" required>
+                        <option value="">-- Select In-Stock Resource --</option>
+                        {% for r in all_resources %}
+                        <option value="{{ r.Resource_ID }}">{{ r.Resource_Name }} (Stock Available: {{ r.Quantity }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Quantity Distributed <span class="req">*</span></label>
+                        <input type="number" name="Quantity_Distributed" min="1" class="form-control" placeholder="e.g. 5" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Date <span class="req">*</span></label>
+                        <input type="date" name="Date" class="form-control" value="{{ now_date }}" required>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; background: rgba(16, 185, 129, 0.08); padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <input type="checkbox" name="auto_deduct" value="1" id="auto_deduct_dash" checked>
+                    <label for="auto_deduct_dash" style="font-size: 0.8rem; color: #a7f3d0; cursor: pointer;">
+                        Automatically deduct distributed quantity from Resource table stock.
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-emerald"><i class="fas fa-check"></i> Record Distribution</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Resource Stock Bar Chart
+    const resourceLabels = [{% for r in resource_inventory %}'{{ r.Resource_Name }}',{% endfor %}];
+    const resourceData = [{% for r in resource_inventory %}{{ r.Quantity }},{% endfor %}];
+
+    const ctxRes = document.getElementById('resourceChart');
+    if (ctxRes && resourceLabels.length > 0) {
+        new Chart(ctxRes, {
+            type: 'bar',
+            data: {
+                labels: resourceLabels,
+                datasets: [{
+                    label: 'Available Quantity',
+                    data: resourceData,
+                    backgroundColor: 'rgba(6, 182, 212, 0.65)',
+                    borderColor: '#06b6d4',
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } },
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                    },
+                    y: {
+                        ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } },
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Disaster Types Doughnut Chart
+    const disasterLabels = [{% for d in disasters_by_type %}'{{ d.Type }}',{% endfor %}];
+    const disasterData = [{% for d in disasters_by_type %}{{ d.count }},{% endfor %}];
+
+    const ctxDis = document.getElementById('disasterChart');
+    if (ctxDis && disasterLabels.length > 0) {
+        new Chart(ctxDis, {
+            type: 'doughnut',
+            data: {
+                labels: disasterLabels,
+                datasets: [{
+                    data: disasterData,
+                    backgroundColor: [
+                        '#f43f5e',
+                        '#3b82f6',
+                        '#f59e0b',
+                        '#10b981',
+                        '#8b5cf6',
+                        '#06b6d4'
+                    ],
+                    borderColor: '#111827',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { color: '#e2e8f0', font: { family: 'Plus Jakarta Sans', size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

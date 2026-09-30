@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Volunteers | Disaster Relief Resource Management System{% endblock %}
+{% block page_title_breadcrumb %}Volunteers (Entity 5/6){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-hands-holding-child" style="color: var(--accent-purple);"></i>
+            Relief Volunteers & Task Force
+        </h1>
+        <div class="page-subtitle">Fixed Entity: <code>Volunteer(<u>Volunteer_ID</u>, Name, Phone, Skill, <em>Center_ID</em>)</code></div>
+    </div>
+    <button class="btn btn-primary" data-modal-open="add-volunteer-modal">
+        <i class="fas fa-user-plus"></i> Enroll Volunteer
+    </button>
+</div>
+
+<!-- Search & Filter Bar -->
+<form method="GET" action="{{ url_for('volunteers_list') }}" class="filter-bar">
+    <div style="flex: 1; min-width: 200px;">
+        <input type="text" name="search" value="{{ search }}" class="form-control" style="width: 100%;" placeholder="Search by name, phone or skill...">
+    </div>
+
+    <div style="min-width: 180px;">
+        <select name="skill" class="form-select" onchange="this.form.submit()">
+            <option value="">All Volunteer Skills</option>
+            {% for s in skills %}
+            <option value="{{ s.Skill }}" {% if selected_skill == s.Skill %}selected{% endif %}>{{ s.Skill }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="min-width: 200px;">
+        <select name="center_id" class="form-select" onchange="this.form.submit()">
+            <option value="">All Relief Centers</option>
+            {% for c in centers %}
+            <option value="{{ c.Center_ID }}" {% if selected_center == c.Center_ID|string %}selected{% endif %}>
+                Center #{{ c.Center_ID }} - {{ c.Name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-filter"></i> Filter</button>
+    {% if search or selected_skill or selected_center %}
+    <a href="{{ url_for('volunteers_list') }}" class="btn btn-secondary btn-sm"><i class="fas fa-times"></i> Clear</a>
+    {% endif %}
+</form>
+
+<!-- Volunteers Table Panel -->
+<div class="card-panel">
+    <div class="card-title">
+        <span>Enrolled Volunteers ({{ volunteers|length }})</span>
+        <input type="text" data-table-search="volunteers-table" class="form-control" style="width: 240px; font-size: 0.8rem;" placeholder="Filter volunteers table...">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table-custom" id="volunteers-table">
+            <thead>
+                <tr>
+                    <th style="width: 120px;">Volunteer_ID <span class="badge badge-pk">PK</span></th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Skill / Specialization</th>
+                    <th>Assigned Center <span class="badge badge-fk">FK</span></th>
+                    <th style="text-align: right; width: 140px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in volunteers %}
+                <tr>
+                    <td><strong class="badge badge-pk">{{ v.Volunteer_ID }}</strong></td>
+                    <td style="font-weight: 600; color: #fff;">
+                        <i class="fas fa-hand-holding-medical" style="color: var(--accent-purple); margin-right: 6px;"></i>
+                        {{ v.Name }}
+                    </td>
+                    <td>
+                        {% if v.Phone %}
+                        <a href="tel:{{ v.Phone }}" style="color: var(--accent-cyan); text-decoration: none;">
+                            <i class="fas fa-phone-alt" style="font-size: 0.75rem;"></i> {{ v.Phone }}
+                        </a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-purple" style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3);">
+                            <i class="fas fa-award"></i> {{ v.Skill or 'General Relief' }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if v.Center_ID %}
+                        <span class="badge badge-fk" title="FK -> ReliefCenter(Center_ID)">
+                            #{{ v.Center_ID }} - {{ v.Center_Name }}
+                        </span>
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-sm" 
+                                data-modal-open="edit-volunteer-modal"
+                                data-edit-data='{{ v|tojson }}'
+                                title="Edit Volunteer">
+                            <i class="fas fa-pencil"></i>
+                        </button>
+                        <a href="{{ url_for('volunteer_delete', volunteer_id=v.Volunteer_ID) }}" 
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('Are you sure you want to remove Volunteer ID {{ v.Volunteer_ID }} ({{ v.Name }})?');"
+                           title="Remove Volunteer">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                        No volunteer records found. Click "Enroll Volunteer" to add personnel.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ADD VOLUNTEER MODAL -->
+<div class="modal-backdrop" id="add-volunteer-modal">
+    <div class="modal-content">
+        <form action="{{ url_for('volunteer_add') }}" method="POST">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-user-plus" style="color: var(--accent-purple); margin-right: 0.5rem;"></i> Enroll Volunteer</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Volunteer_ID (Primary Key) <span class="req">*</span></label>
+                    <input type="number" name="Volunteer_ID" class="form-control" placeholder="e.g. 306" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Name <span class="req">*</span></label>
+                    <input type="text" name="Name" class="form-control" placeholder="Volunteer full name" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="Phone" class="form-control" placeholder="e.g. 9876500006">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Skill / Specialization</label>
+                        <input type="text" name="Skill" class="form-control" placeholder="e.g. Medical Support, Rescue, Food Distribution">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Assigned Relief Center (Foreign Key)</label>
+                    <select name="Center_ID" class="form-select">
+                        <option value="">-- No Specific Center / Unassigned --</option>
+                        {% for c in centers %}
+                        <option value="{{ c.Center_ID }}">{{ c.Center_ID }} - {{ c.Name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Volunteer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT VOLUNTEER MODAL -->
+<div class="modal-backdrop" id="edit-volunteer-modal">
+    <div class="modal-content">
+        <form id="edit-volunteer-form" method="POST" action="">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-pencil" style="color: var(--primary-500); margin-right: 0.5rem;"></i> Edit Volunteer</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Volunteer_ID (Read-only PK)</label>
+                    <input type="number" name="Volunteer_ID" id="edit_Volunteer_ID" class="form-control" readonly style="opacity: 0.7;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Name <span class="req">*</span></label>
+                    <input type="text" name="Name" class="form-control" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="Phone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Skill</label>
+                        <input type="text" name="Skill" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Assigned Relief Center (Foreign Key)</label>
+                    <select name="Center_ID" class="form-select">
+                        <option value="">-- No Specific Center --</option>
+                        {% for c in centers %}
+                        <option value="{{ c.Center_ID }}">{{ c.Center_ID }} - {{ c.Name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Update Volunteer</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-edit-data]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const data = JSON.parse(btn.getAttribute('data-edit-data'));
+        const form = document.getElementById('edit-volunteer-form');
+        form.action = `/volunteers/edit/${data.Volunteer_ID}`;
+    });
+});
+</script>
+{% endblock %}

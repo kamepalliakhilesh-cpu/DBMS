@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Distributions | Disaster Relief Resource Management System{% endblock %}
+{% block page_title_breadcrumb %}Distributions (Entity 6/6){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-truck-ramp-box" style="color: var(--primary-500);"></i>
+            Resource Distribution & Aid Delivery
+        </h1>
+        <div class="page-subtitle">Fixed Entity: <code>Distribution(<u>Distribution_ID</u>, <em>Victim_ID</em>, <em>Resource_ID</em>, Quantity_Distributed, Date)</code></div>
+    </div>
+    <button class="btn btn-emerald" data-modal-open="add-dist-modal">
+        <i class="fas fa-plus-circle"></i> Record Distribution
+    </button>
+</div>
+
+<!-- Search & Filter Bar -->
+<form method="GET" action="{{ url_for('distributions_list') }}" class="filter-bar">
+    <div style="min-width: 220px; flex: 1;">
+        <select name="victim_id" class="form-select" onchange="this.form.submit()">
+            <option value="">All Recipient Victims</option>
+            {% for v in victims %}
+            <option value="{{ v.Victim_ID }}" {% if selected_victim == v.Victim_ID|string %}selected{% endif %}>
+                Victim #{{ v.Victim_ID }} - {{ v.Name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="min-width: 220px; flex: 1;">
+        <select name="resource_id" class="form-select" onchange="this.form.submit()">
+            <option value="">All Resource Materials</option>
+            {% for r in resources %}
+            <option value="{{ r.Resource_ID }}" {% if selected_resource == r.Resource_ID|string %}selected{% endif %}>
+                Resource #{{ r.Resource_ID }} - {{ r.Resource_Name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="min-width: 160px;">
+        <input type="date" name="date" value="{{ selected_date }}" class="form-control" onchange="this.form.submit()">
+    </div>
+
+    <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-filter"></i> Filter</button>
+    {% if selected_victim or selected_resource or selected_date %}
+    <a href="{{ url_for('distributions_list') }}" class="btn btn-secondary btn-sm"><i class="fas fa-times"></i> Clear</a>
+    {% endif %}
+</form>
+
+<!-- Distributions Table Panel -->
+<div class="card-panel">
+    <div class="card-title">
+        <span>Distribution Ledger ({{ distributions|length }})</span>
+        <input type="text" data-table-search="dist-table" class="form-control" style="width: 240px; font-size: 0.8rem;" placeholder="Filter distribution rows...">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table-custom" id="dist-table">
+            <thead>
+                <tr>
+                    <th style="width: 120px;">Distribution_ID <span class="badge badge-pk">PK</span></th>
+                    <th>Victim Recipient <span class="badge badge-fk">FK</span></th>
+                    <th>Resource Distributed <span class="badge badge-fk">FK</span></th>
+                    <th>Quantity_Distributed</th>
+                    <th>Date</th>
+                    <th style="text-align: right; width: 140px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in distributions %}
+                <tr>
+                    <td><strong class="badge badge-pk">{{ d.Distribution_ID }}</strong></td>
+                    <td>
+                        <div style="font-weight: 600; color: #fff;">
+                            <i class="fas fa-user" style="color: var(--accent-amber); margin-right: 4px;"></i>
+                            {{ d.Victim_Name }}
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            ID: {{ d.Victim_ID }} {% if d.Victim_Contact %}| {{ d.Victim_Contact }}{% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: #fff;">
+                            <i class="fas fa-box" style="color: var(--accent-cyan); margin-right: 4px;"></i>
+                            {{ d.Resource_Name }}
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            ID: {{ d.Resource_ID }} | Type: {{ d.Resource_Type or 'General' }}
+                        </div>
+                    </td>
+                    <td>
+                        <span style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800; color: var(--accent-emerald);">
+                            {{ d.Quantity_Distributed }}
+                        </span> units
+                    </td>
+                    <td><i class="fas fa-calendar-day" style="color: var(--text-muted); margin-right: 4px;"></i> {{ d.Date|format_date }}</td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-sm" 
+                                data-modal-open="edit-dist-modal"
+                                data-edit-data='{{ d|tojson }}'
+                                title="Edit Record">
+                            <i class="fas fa-pencil"></i>
+                        </button>
+                        <a href="{{ url_for('distribution_delete', dist_id=d.Distribution_ID) }}" 
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('Are you sure you want to delete Distribution ID {{ d.Distribution_ID }}?');"
+                           title="Delete Record">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                        No distribution records found. Click "Record Distribution" to log aid provided.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ADD DISTRIBUTION MODAL -->
+<div class="modal-backdrop" id="add-dist-modal">
+    <div class="modal-content">
+        <form action="{{ url_for('distribution_add') }}" method="POST">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-truck-ramp-box" style="color: var(--accent-emerald); margin-right: 0.5rem;"></i> Record Resource Distribution</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Distribution_ID (Primary Key) <span class="req">*</span></label>
+                    <input type="number" name="Distribution_ID" class="form-control" placeholder="e.g. 707" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Victim (Foreign Key: Victim_ID) <span class="req">*</span></label>
+                    <select name="Victim_ID" class="form-select" required>
+                        <option value="">-- Select Recipient Victim --</option>
+                        {% for v in victims %}
+                        <option value="{{ v.Victim_ID }}">{{ v.Victim_ID }} - {{ v.Name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Resource Item (Foreign Key: Resource_ID) <span class="req">*</span></label>
+                    <select name="Resource_ID" class="form-select" required>
+                        <option value="">-- Select Resource to Distribute --</option>
+                        {% for r in resources %}
+                        <option value="{{ r.Resource_ID }}">{{ r.Resource_ID }} - {{ r.Resource_Name }} (Stock: {{ r.Quantity }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Quantity Distributed <span class="req">*</span></label>
+                        <input type="number" name="Quantity_Distributed" min="1" class="form-control" placeholder="e.g. 10" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date <span class="req">*</span></label>
+                        <input type="date" name="Date" class="form-control" value="{{ now_date }}" required>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(16, 185, 129, 0.08); padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <input type="checkbox" name="auto_deduct" value="1" id="auto_deduct" checked>
+                    <label for="auto_deduct" style="font-size: 0.8rem; color: #a7f3d0; cursor: pointer;">
+                        Automatically deduct distributed quantity from Resource table stock.
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-emerald"><i class="fas fa-check"></i> Save Distribution</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT DISTRIBUTION MODAL -->
+<div class="modal-backdrop" id="edit-dist-modal">
+    <div class="modal-content">
+        <form id="edit-dist-form" method="POST" action="">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-pencil" style="color: var(--primary-500); margin-right: 0.5rem;"></i> Edit Distribution Record</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Distribution_ID (Read-only PK)</label>
+                    <input type="number" name="Distribution_ID" id="edit_Distribution_ID" class="form-control" readonly style="opacity: 0.7;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Victim (Foreign Key: Victim_ID) <span class="req">*</span></label>
+                    <select name="Victim_ID" class="form-select" required>
+                        <option value="">-- Select Recipient Victim --</option>
+                        {% for v in victims %}
+                        <option value="{{ v.Victim_ID }}">{{ v.Victim_ID }} - {{ v.Name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Resource Item (Foreign Key: Resource_ID) <span class="req">*</span></label>
+                    <select name="Resource_ID" class="form-select" required>
+                        <option value="">-- Select Resource --</option>
+                        {% for r in resources %}
+                        <option value="{{ r.Resource_ID }}">{{ r.Resource_ID }} - {{ r.Resource_Name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Quantity Distributed <span class="req">*</span></label>
+                        <input type="number" name="Quantity_Distributed" min="1" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date <span class="req">*</span></label>
+                        <input type="date" name="Date" class="form-control" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Update Distribution</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-edit-data]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const data = JSON.parse(btn.getAttribute('data-edit-data'));
+        const form = document.getElementById('edit-dist-form');
+        form.action = `/distributions/edit/${data.Distribution_ID}`;
+    });
+});
+</script>
+{% endblock %}

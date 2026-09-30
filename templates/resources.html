@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Resources | Disaster Relief Resource Management System{% endblock %}
+{% block page_title_breadcrumb %}Resources (Entity 4/6){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-boxes-stacked" style="color: var(--accent-emerald);"></i>
+            Relief Resources & Inventory Management
+        </h1>
+        <div class="page-subtitle">Fixed Entity: <code>Resource(<u>Resource_ID</u>, Resource_Name, Type, Quantity, <em>Center_ID</em>)</code></div>
+    </div>
+    <button class="btn btn-primary" data-modal-open="add-resource-modal">
+        <i class="fas fa-plus"></i> Add New Resource
+    </button>
+</div>
+
+<!-- Search & Filter Bar -->
+<form method="GET" action="{{ url_for('resources_list') }}" class="filter-bar">
+    <div style="flex: 1; min-width: 200px;">
+        <input type="text" name="search" value="{{ search }}" class="form-control" style="width: 100%;" placeholder="Search by resource name or type...">
+    </div>
+
+    <div style="min-width: 180px;">
+        <select name="type" class="form-select" onchange="this.form.submit()">
+            <option value="">All Resource Types</option>
+            {% for t in types %}
+            <option value="{{ t.Type }}" {% if selected_type == t.Type %}selected{% endif %}>{{ t.Type }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="min-width: 200px;">
+        <select name="center_id" class="form-select" onchange="this.form.submit()">
+            <option value="">All Relief Centers</option>
+            {% for c in centers %}
+            <option value="{{ c.Center_ID }}" {% if selected_center == c.Center_ID|string %}selected{% endif %}>
+                Center #{{ c.Center_ID }} - {{ c.Name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-filter"></i> Filter</button>
+    {% if search or selected_type or selected_center %}
+    <a href="{{ url_for('resources_list') }}" class="btn btn-secondary btn-sm"><i class="fas fa-times"></i> Clear</a>
+    {% endif %}
+</form>
+
+<!-- Resources Table Panel -->
+<div class="card-panel">
+    <div class="card-title">
+        <span>Resource Inventory ({{ resources|length }})</span>
+        <input type="text" data-table-search="resources-table" class="form-control" style="width: 240px; font-size: 0.8rem;" placeholder="Filter resources table...">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table-custom" id="resources-table">
+            <thead>
+                <tr>
+                    <th style="width: 120px;">Resource_ID <span class="badge badge-pk">PK</span></th>
+                    <th>Resource_Name</th>
+                    <th>Type</th>
+                    <th>Available Quantity</th>
+                    <th>Stock Status</th>
+                    <th>Stored At Center <span class="badge badge-fk">FK</span></th>
+                    <th style="text-align: right; width: 170px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in resources %}
+                <tr>
+                    <td><strong class="badge badge-pk">{{ r.Resource_ID }}</strong></td>
+                    <td style="font-weight: 600; color: #fff;">
+                        <i class="fas fa-box" style="color: var(--accent-emerald); margin-right: 6px;"></i>
+                        {{ r.Resource_Name }}
+                    </td>
+                    <td>
+                        <span class="badge badge-moderate">{{ r.Type or 'General' }}</span>
+                    </td>
+                    <td>
+                        <span style="font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; color: #fff;">{{ r.Quantity }}</span> units
+                    </td>
+                    <td>
+                        {% if r.Quantity == 0 %}
+                        <span class="badge badge-critical"><i class="fas fa-circle-xmark"></i> Out of Stock</span>
+                        {% elif r.Quantity < 100 %}
+                        <span class="badge badge-high"><i class="fas fa-circle-exclamation"></i> Low Stock</span>
+                        {% else %}
+                        <span class="badge badge-low"><i class="fas fa-circle-check"></i> In Stock</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.Center_ID %}
+                        <span class="badge badge-fk" title="FK -> ReliefCenter(Center_ID)">
+                            #{{ r.Center_ID }} - {{ r.Center_Name }}
+                        </span>
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-sm" 
+                                data-modal-open="restock-resource-modal"
+                                onclick="document.getElementById('restock_form').action='/resources/restock/{{ r.Resource_ID }}'; document.getElementById('restock_res_name').innerText='{{ r.Resource_Name }}';"
+                                title="Quick Restock">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="btn btn-secondary btn-sm" 
+                                data-modal-open="edit-resource-modal"
+                                data-edit-data='{{ r|tojson }}'
+                                title="Edit Resource">
+                            <i class="fas fa-pencil"></i>
+                        </button>
+                        <a href="{{ url_for('resource_delete', resource_id=r.Resource_ID) }}" 
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('Are you sure you want to delete Resource ID {{ r.Resource_ID }} ({{ r.Resource_Name }})?');"
+                           title="Delete Resource">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                        No resources found. Click "Add New Resource" to register inventory items.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ADD RESOURCE MODAL -->
+<div class="modal-backdrop" id="add-resource-modal">
+    <div class="modal-content">
+        <form action="{{ url_for('resource_add') }}" method="POST">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-boxes-stacked" style="color: var(--accent-emerald); margin-right: 0.5rem;"></i> Add Relief Resource</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Resource_ID (Primary Key) <span class="req">*</span></label>
+                    <input type="number" name="Resource_ID" class="form-control" placeholder="e.g. 208" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Resource_Name <span class="req">*</span></label>
+                    <input type="text" name="Resource_Name" class="form-control" placeholder="e.g. Drinking Water, Rice, Medical Kit" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Type (Category)</label>
+                        <input type="text" name="Type" class="form-control" placeholder="e.g. Food, Water, Medical, Shelter">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Quantity <span class="req">*</span></label>
+                        <input type="number" name="Quantity" min="0" class="form-control" placeholder="e.g. 250" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Assigned Relief Center (Foreign Key)</label>
+                    <select name="Center_ID" class="form-select">
+                        <option value="">-- No Specific Center / Unassigned --</option>
+                        {% for c in centers %}
+                        <option value="{{ c.Center_ID }}">{{ c.Center_ID }} - {{ c.Name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Resource</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT RESOURCE MODAL -->
+<div class="modal-backdrop" id="edit-resource-modal">
+    <div class="modal-content">
+        <form id="edit-resource-form" method="POST" action="">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-pencil" style="color: var(--primary-500); margin-right: 0.5rem;"></i> Edit Resource</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Resource_ID (Read-only PK)</label>
+                    <input type="number" name="Resource_ID" id="edit_Resource_ID" class="form-control" readonly style="opacity: 0.7;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Resource_Name <span class="req">*</span></label>
+                    <input type="text" name="Resource_Name" class="form-control" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Type</label>
+                        <input type="text" name="Type" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Quantity <span class="req">*</span></label>
+                        <input type="number" name="Quantity" min="0" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Assigned Relief Center (Foreign Key)</label>
+                    <select name="Center_ID" class="form-select">
+                        <option value="">-- No Specific Center --</option>
+                        {% for c in centers %}
+                        <option value="{{ c.Center_ID }}">{{ c.Center_ID }} - {{ c.Name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Update Resource</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- QUICK RESTOCK MODAL -->
+<div class="modal-backdrop" id="restock-resource-modal">
+    <div class="modal-content">
+        <form id="restock_form" method="POST" action="">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-truck-loading" style="color: var(--accent-emerald); margin-right: 0.5rem;"></i> Restock Resource</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                    Adding inventory to: <strong id="restock_res_name" style="color: #fff;"></strong>
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Quantity to Add <span class="req">*</span></label>
+                    <input type="number" name="Add_Quantity" min="1" class="form-control" placeholder="e.g. 200" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-emerald"><i class="fas fa-plus"></i> Restock Now</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-edit-data]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const data = JSON.parse(btn.getAttribute('data-edit-data'));
+        const form = document.getElementById('edit-resource-form');
+        form.action = `/resources/edit/${data.Resource_ID}`;
+    });
+});
+</script>
+{% endblock %}

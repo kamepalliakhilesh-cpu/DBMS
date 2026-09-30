@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Relief Centers | Disaster Relief Resource Management System{% endblock %}
+{% block page_title_breadcrumb %}Relief Centers (Entity 3/6){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-tents" style="color: var(--accent-cyan);"></i>
+            Relief Centres Management
+        </h1>
+        <div class="page-subtitle">Fixed Entity: <code>ReliefCenter(<u>Center_ID</u>, Name, Location, Capacity, Contact)</code></div>
+    </div>
+    <button class="btn btn-primary" data-modal-open="add-center-modal">
+        <i class="fas fa-plus"></i> Add Relief Center
+    </button>
+</div>
+
+<!-- Search Bar -->
+<form method="GET" action="{{ url_for('relief_centers_list') }}" class="filter-bar">
+    <div style="flex: 1; min-width: 260px;">
+        <input type="text" name="search" value="{{ search }}" class="form-control" style="width: 100%;" placeholder="Search by centre name or location...">
+    </div>
+    <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-search"></i> Search</button>
+    {% if search %}
+    <a href="{{ url_for('relief_centers_list') }}" class="btn btn-secondary btn-sm"><i class="fas fa-times"></i> Clear</a>
+    {% endif %}
+</form>
+
+<!-- Relief Center Cards / Table -->
+<div class="card-panel">
+    <div class="card-title">
+        <span>Active Relief Hubs ({{ centers|length }})</span>
+        <input type="text" data-table-search="centers-table" class="form-control" style="width: 240px; font-size: 0.8rem;" placeholder="Filter centres table...">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table-custom" id="centers-table">
+            <thead>
+                <tr>
+                    <th style="width: 110px;">Center_ID <span class="badge badge-pk">PK</span></th>
+                    <th>Name</th>
+                    <th>Location</th>
+                    <th>Capacity</th>
+                    <th>Contact</th>
+                    <th>Stock & Volunteers</th>
+                    <th style="text-align: right; width: 140px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in centers %}
+                <tr>
+                    <td><strong class="badge badge-pk">{{ c.Center_ID }}</strong></td>
+                    <td style="font-weight: 600; color: #fff;">
+                        <i class="fas fa-campground" style="color: var(--accent-cyan); margin-right: 6px;"></i>
+                        {{ c.Name }}
+                    </td>
+                    <td><i class="fas fa-map-pin" style="color: var(--accent-cyan); margin-right: 4px;"></i> {{ c.Location or '—' }}</td>
+                    <td>
+                        <span style="font-weight: 700; color: var(--accent-emerald);">{{ c.Capacity if c.Capacity is not none else '—' }}</span> people
+                    </td>
+                    <td>
+                        {% if c.Contact %}
+                        <a href="tel:{{ c.Contact }}" style="color: var(--accent-cyan); text-decoration: none;">
+                            <i class="fas fa-phone" style="font-size: 0.75rem;"></i> {{ c.Contact }}
+                        </a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-low" title="Total resources stored"><i class="fas fa-box"></i> {{ c.Resource_Count }} types ({{ c.Total_Stock }} items)</span>
+                        <span class="badge badge-moderate" title="Assigned volunteers"><i class="fas fa-user-gear"></i> {{ c.Volunteer_Count }} volunteers</span>
+                    </td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-sm" 
+                                data-modal-open="edit-center-modal"
+                                data-edit-data='{{ c|tojson }}'
+                                title="Edit Relief Centre">
+                            <i class="fas fa-pencil"></i>
+                        </button>
+                        <a href="{{ url_for('relief_center_delete', center_id=c.Center_ID) }}" 
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('Are you sure you want to delete Relief Center ID {{ c.Center_ID }} ({{ c.Name }})?');"
+                           title="Delete Relief Centre">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                        No relief centres found. Click "Add Relief Center" to establish a new hub.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ADD RELIEF CENTER MODAL -->
+<div class="modal-backdrop" id="add-center-modal">
+    <div class="modal-content">
+        <form action="{{ url_for('relief_center_add') }}" method="POST">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-tents" style="color: var(--accent-cyan); margin-right: 0.5rem;"></i> Add Relief Centre</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Center_ID (Primary Key) <span class="req">*</span></label>
+                    <input type="number" name="Center_ID" class="form-control" placeholder="e.g. 405" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Name <span class="req">*</span></label>
+                    <input type="text" name="Name" class="form-control" placeholder="e.g. Central Community Relief Hub" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" name="Location" class="form-control" placeholder="e.g. Collectorate Grounds, Kakinada">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Capacity (Persons)</label>
+                        <input type="number" name="Capacity" min="0" class="form-control" placeholder="e.g. 500">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contact Phone</label>
+                        <input type="text" name="Contact" class="form-control" placeholder="e.g. 9876000005">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Centre</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT RELIEF CENTER MODAL -->
+<div class="modal-backdrop" id="edit-center-modal">
+    <div class="modal-content">
+        <form id="edit-center-form" method="POST" action="">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-pencil" style="color: var(--primary-500); margin-right: 0.5rem;"></i> Edit Relief Centre</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Center_ID (Read-only PK)</label>
+                    <input type="number" name="Center_ID" id="edit_Center_ID" class="form-control" readonly style="opacity: 0.7;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Name <span class="req">*</span></label>
+                    <input type="text" name="Name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" name="Location" class="form-control">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Capacity (Persons)</label>
+                        <input type="number" name="Capacity" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contact Phone</label>
+                        <input type="text" name="Contact" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Update Centre</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-edit-data]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const data = JSON.parse(btn.getAttribute('data-edit-data'));
+        const form = document.getElementById('edit-center-form');
+        form.action = `/relief-centers/edit/${data.Center_ID}`;
+    });
+});
+</script>
+{% endblock %}

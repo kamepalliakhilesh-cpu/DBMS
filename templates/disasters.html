@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Disasters | Disaster Relief Resource Management System{% endblock %}
+{% block page_title_breadcrumb %}Disasters (Entity 1/6){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-house-crack" style="color: var(--accent-rose);"></i>
+            Disaster Events Management
+        </h1>
+        <div class="page-subtitle">Fixed Entity: <code>Disaster(<u>Disaster_ID</u>, Type, Location, Date, Severity_Level)</code></div>
+    </div>
+    <button class="btn btn-primary" data-modal-open="add-disaster-modal">
+        <i class="fas fa-plus"></i> Add Disaster Event
+    </button>
+</div>
+
+<!-- Search & Filter Bar -->
+<form method="GET" action="{{ url_for('disasters_list') }}" class="filter-bar">
+    <div style="flex: 1; min-width: 220px;">
+        <input type="text" name="search" value="{{ search }}" class="form-control" style="width: 100%;" placeholder="Search by location or type...">
+    </div>
+
+    <div style="min-width: 180px;">
+        <select name="type" class="form-select" onchange="this.form.submit()">
+            <option value="">All Disaster Types</option>
+            {% for t in types %}
+            <option value="{{ t.Type }}" {% if selected_type == t.Type %}selected{% endif %}>{{ t.Type }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="min-width: 180px;">
+        <select name="severity" class="form-select" onchange="this.form.submit()">
+            <option value="">All Severity Levels</option>
+            {% for s in severities %}
+            <option value="{{ s }}" {% if selected_severity == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-filter"></i> Filter</button>
+    {% if search or selected_type or selected_severity %}
+    <a href="{{ url_for('disasters_list') }}" class="btn btn-secondary btn-sm"><i class="fas fa-times"></i> Clear</a>
+    {% endif %}
+</form>
+
+<!-- Disaster Table Panel -->
+<div class="card-panel">
+    <div class="card-title">
+        <span>Registered Incidents ({{ disasters|length }})</span>
+        <input type="text" data-table-search="disasters-table" class="form-control" style="width: 240px; font-size: 0.8rem;" placeholder="Quick filter table rows...">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table-custom" id="disasters-table">
+            <thead>
+                <tr>
+                    <th style="width: 120px;">Disaster_ID <span class="badge badge-pk">PK</span></th>
+                    <th>Type</th>
+                    <th>Location</th>
+                    <th>Date</th>
+                    <th>Severity_Level</th>
+                    <th style="text-align: right; width: 140px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in disasters %}
+                <tr>
+                    <td><strong class="badge badge-pk">{{ d.Disaster_ID }}</strong></td>
+                    <td style="font-weight: 600; color: #fff;">{{ d.Type }}</td>
+                    <td><i class="fas fa-location-dot" style="color: var(--accent-cyan); margin-right: 4px;"></i> {{ d.Location or '—' }}</td>
+                    <td>{{ d.Date|format_date }}</td>
+                    <td>
+                        {% set s = (d.Severity_Level or '')|lower %}
+                        <span class="badge {% if s == 'critical' %}badge-critical{% elif s == 'high' %}badge-high{% elif s == 'moderate' %}badge-moderate{% else %}badge-low{% endif %}">
+                            {{ d.Severity_Level or 'Standard' }}
+                        </span>
+                    </td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-sm" 
+                                data-modal-open="edit-disaster-modal"
+                                data-edit-data='{{ d|tojson }}'
+                                title="Edit Record">
+                            <i class="fas fa-pencil"></i>
+                        </button>
+                        <a href="{{ url_for('disaster_delete', disaster_id=d.Disaster_ID) }}" 
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('Are you sure you want to delete Disaster ID {{ d.Disaster_ID }}?');"
+                           title="Delete Record">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                        No disaster records found. Click "Add Disaster Event" to create one.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ADD DISASTER MODAL -->
+<div class="modal-backdrop" id="add-disaster-modal">
+    <div class="modal-content">
+        <form action="{{ url_for('disaster_add') }}" method="POST">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-house-crack" style="color: var(--accent-rose); margin-right: 0.5rem;"></i> Add Disaster Event</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Disaster_ID (Primary Key) <span class="req">*</span></label>
+                    <input type="number" name="Disaster_ID" class="form-control" placeholder="e.g. 6" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type <span class="req">*</span></label>
+                    <input type="text" name="Type" class="form-control" placeholder="e.g. Cyclone, Flood, Earthquake, Landslide" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" name="Location" class="form-control" placeholder="e.g. Kakinada, East Godavari">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date</label>
+                    <input type="date" name="Date" class="form-control" value="{{ now_date }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Severity_Level</label>
+                    <select name="Severity_Level" class="form-select">
+                        <option value="Critical">Critical</option>
+                        <option value="High" selected>High</option>
+                        <option value="Moderate">Moderate</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Disaster</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT DISASTER MODAL -->
+<div class="modal-backdrop" id="edit-disaster-modal">
+    <div class="modal-content">
+        <form id="edit-disaster-form" method="POST" action="">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-pencil" style="color: var(--primary-500); margin-right: 0.5rem;"></i> Edit Disaster Event</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Disaster_ID (Read-only PK)</label>
+                    <input type="number" name="Disaster_ID" id="edit_Disaster_ID" class="form-control" readonly style="opacity: 0.7;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type <span class="req">*</span></label>
+                    <input type="text" name="Type" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" name="Location" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date</label>
+                    <input type="date" name="Date" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Severity_Level</label>
+                    <select name="Severity_Level" class="form-select">
+                        <option value="Critical">Critical</option>
+                        <option value="High">High</option>
+                        <option value="Moderate">Moderate</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Update Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-edit-data]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const data = JSON.parse(btn.getAttribute('data-edit-data'));
+        const form = document.getElementById('edit-disaster-form');
+        form.action = `/disasters/edit/${data.Disaster_ID}`;
+    });
+});
+</script>
+{% endblock %}

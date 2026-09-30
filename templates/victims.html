@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Victims | Disaster Relief Resource Management System{% endblock %}
+{% block page_title_breadcrumb %}Victims (Entity 2/6){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-users" style="color: var(--accent-amber);"></i>
+            Victims & Affected Persons Management
+        </h1>
+        <div class="page-subtitle">Fixed Entity: <code>Victim(<u>Victim_ID</u>, Name, Age, Contact, Address, <em>Disaster_ID</em>)</code></div>
+    </div>
+    <button class="btn btn-primary" data-modal-open="add-victim-modal">
+        <i class="fas fa-user-plus"></i> Register Victim
+    </button>
+</div>
+
+<!-- Search & Filter Bar -->
+<form method="GET" action="{{ url_for('victims_list') }}" class="filter-bar">
+    <div style="flex: 1; min-width: 220px;">
+        <input type="text" name="search" value="{{ search }}" class="form-control" style="width: 100%;" placeholder="Search by name, contact or address...">
+    </div>
+
+    <div style="min-width: 220px;">
+        <select name="disaster_id" class="form-select" onchange="this.form.submit()">
+            <option value="">All Affected Disasters</option>
+            {% for d in disasters %}
+            <option value="{{ d.Disaster_ID }}" {% if selected_disaster == d.Disaster_ID|string %}selected{% endif %}>
+                Disaster #{{ d.Disaster_ID }} - {{ d.Type }} ({{ d.Location }})
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-filter"></i> Filter</button>
+    {% if search or selected_disaster %}
+    <a href="{{ url_for('victims_list') }}" class="btn btn-secondary btn-sm"><i class="fas fa-times"></i> Clear</a>
+    {% endif %}
+</form>
+
+<!-- Victims Table Panel -->
+<div class="card-panel">
+    <div class="card-title">
+        <span>Registered Victims ({{ victims|length }})</span>
+        <input type="text" data-table-search="victims-table" class="form-control" style="width: 240px; font-size: 0.8rem;" placeholder="Filter victims table...">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table-custom" id="victims-table">
+            <thead>
+                <tr>
+                    <th style="width: 110px;">Victim_ID <span class="badge badge-pk">PK</span></th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Contact</th>
+                    <th>Address</th>
+                    <th>Linked Disaster <span class="badge badge-fk">FK</span></th>
+                    <th style="text-align: right; width: 140px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in victims %}
+                <tr>
+                    <td><strong class="badge badge-pk">{{ v.Victim_ID }}</strong></td>
+                    <td style="font-weight: 600; color: #fff;">
+                        <i class="fas fa-user" style="color: var(--accent-amber); margin-right: 6px;"></i>
+                        {{ v.Name }}
+                    </td>
+                    <td>{{ v.Age if v.Age is not none else '—' }}</td>
+                    <td>
+                        {% if v.Contact %}
+                        <a href="tel:{{ v.Contact }}" style="color: var(--accent-cyan); text-decoration: none;">
+                            <i class="fas fa-phone-volume" style="font-size: 0.75rem;"></i> {{ v.Contact }}
+                        </a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td><span style="color: var(--text-secondary); font-size: 0.85rem;">{{ v.Address or '—' }}</span></td>
+                    <td>
+                        {% if v.Disaster_ID %}
+                        <span class="badge badge-fk" title="FK -> Disaster(Disaster_ID)">
+                            #{{ v.Disaster_ID }} - {{ v.Disaster_Type }}
+                        </span>
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unlinked</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-sm" 
+                                data-modal-open="edit-victim-modal"
+                                data-edit-data='{{ v|tojson }}'
+                                title="Edit Victim">
+                            <i class="fas fa-pencil"></i>
+                        </button>
+                        <a href="{{ url_for('victim_delete', victim_id=v.Victim_ID) }}" 
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('Are you sure you want to delete Victim ID {{ v.Victim_ID }} ({{ v.Name }})?');"
+                           title="Delete Victim">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                        No victim records found. Click "Register Victim" to add new records.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ADD VICTIM MODAL -->
+<div class="modal-backdrop" id="add-victim-modal">
+    <div class="modal-content">
+        <form action="{{ url_for('victim_add') }}" method="POST">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-user-plus" style="color: var(--accent-amber); margin-right: 0.5rem;"></i> Register Victim</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Victim_ID (Primary Key) <span class="req">*</span></label>
+                    <input type="number" name="Victim_ID" class="form-control" placeholder="e.g. 107" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Name <span class="req">*</span></label>
+                    <input type="text" name="Name" class="form-control" placeholder="Full name of affected person" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Age</label>
+                        <input type="number" name="Age" min="0" max="130" class="form-control" placeholder="e.g. 35">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contact (Phone)</label>
+                        <input type="text" name="Contact" class="form-control" placeholder="e.g. 9876543210">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Address</label>
+                    <textarea name="Address" class="form-control" rows="2" placeholder="Shelter / Residential area"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Linked Disaster (Foreign Key)</label>
+                    <select name="Disaster_ID" class="form-select">
+                        <option value="">-- No Specific Disaster / Unlinked --</option>
+                        {% for d in disasters %}
+                        <option value="{{ d.Disaster_ID }}">{{ d.Disaster_ID }} - {{ d.Type }} ({{ d.Location }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Victim</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT VICTIM MODAL -->
+<div class="modal-backdrop" id="edit-victim-modal">
+    <div class="modal-content">
+        <form id="edit-victim-form" method="POST" action="">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-pencil" style="color: var(--primary-500); margin-right: 0.5rem;"></i> Edit Victim Details</h3>
+                <button type="button" class="modal-close" data-modal-close>&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Victim_ID (Read-only PK)</label>
+                    <input type="number" name="Victim_ID" id="edit_Victim_ID" class="form-control" readonly style="opacity: 0.7;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Name <span class="req">*</span></label>
+                    <input type="text" name="Name" class="form-control" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Age</label>
+                        <input type="number" name="Age" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contact</label>
+                        <input type="text" name="Contact" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Address</label>
+                    <textarea name="Address" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Linked Disaster (Foreign Key)</label>
+                    <select name="Disaster_ID" class="form-select">
+                        <option value="">-- No Specific Disaster --</option>
+                        {% for d in disasters %}
+                        <option value="{{ d.Disaster_ID }}">{{ d.Disaster_ID }} - {{ d.Type }} ({{ d.Location }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Update Victim</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-edit-data]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const data = JSON.parse(btn.getAttribute('data-edit-data'));
+        const form = document.getElementById('edit-victim-form');
+        form.action = `/victims/edit/${data.Victim_ID}`;
+    });
+});
+</script>
+{% endblock %}

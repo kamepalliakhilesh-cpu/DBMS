@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Disaster Relief Resource Management System{% endblock %}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Chart.js for Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-badge">
+                    <i class="fas fa-hand-holding-heart"></i>
+                </div>
+                <div>
+                    <div class="brand-title">DRRMS</div>
+                    <div class="brand-subtitle">Relief Command</div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">Overview</div>
+                <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-chart-pie"></i></span>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="nav-section-label">Database Entities (6 Tables)</div>
+                <a href="{{ url_for('disasters_list') }}" class="nav-item {% if request.endpoint == 'disasters_list' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-house-crack"></i></span>
+                    <span>1. Disaster</span>
+                </a>
+                <a href="{{ url_for('victims_list') }}" class="nav-item {% if request.endpoint == 'victims_list' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-users"></i></span>
+                    <span>2. Victim</span>
+                </a>
+                <a href="{{ url_for('relief_centers_list') }}" class="nav-item {% if request.endpoint == 'relief_centers_list' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-tents"></i></span>
+                    <span>3. ReliefCenter</span>
+                </a>
+                <a href="{{ url_for('resources_list') }}" class="nav-item {% if request.endpoint == 'resources_list' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-boxes-stacked"></i></span>
+                    <span>4. Resource</span>
+                </a>
+                <a href="{{ url_for('volunteers_list') }}" class="nav-item {% if request.endpoint == 'volunteers_list' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-hands-holding-child"></i></span>
+                    <span>5. Volunteer</span>
+                </a>
+                <a href="{{ url_for('distributions_list') }}" class="nav-item {% if request.endpoint == 'distributions_list' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-truck-ramp-box"></i></span>
+                    <span>6. Distribution</span>
+                </a>
+
+                <div class="nav-section-label">DBMS Tools & Viva</div>
+                <a href="{{ url_for('reports') }}" class="nav-item {% if request.endpoint == 'reports' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-database"></i></span>
+                    <span>SQL Reports (Q1-Q20)</span>
+                </a>
+                <a href="{{ url_for('er_diagram') }}" class="nav-item {% if request.endpoint == 'er_diagram' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-diagram-project"></i></span>
+                    <span>ER Diagram & Schema</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="db-pill">
+                    <span class="status-dot {% if not db_ok %}offline{% endif %}"></span>
+                    <span>MySQL: {% if db_ok %}Connected (Port 3306){% else %}Offline / Config Error{% endif %}</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Wrapper -->
+        <div class="main-wrapper">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <button id="sidebar-toggle" class="btn btn-secondary btn-icon" style="display: none;">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="breadcrumbs">
+                        <a href="{{ url_for('dashboard') }}"><i class="fas fa-shield-halved"></i> DRRMS</a>
+                        <span>/</span>
+                        <span class="current">{% block page_title_breadcrumb %}Command Center{% endblock %}</span>
+                    </div>
+                </div>
+
+                <div class="topbar-actions">
+                    <form action="{{ url_for('system_seed_db') }}" method="POST" onsubmit="return confirm('Reset and re-seed the MySQL database with official sample records?');" style="margin: 0;">
+                        <button type="submit" class="btn btn-secondary btn-sm" title="Re-seed standard project sample records into MySQL">
+                            <i class="fas fa-rotate"></i> Re-Seed Data
+                        </button>
+                    </form>
+                    <a href="{{ url_for('reports') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-terminal"></i> SQL Console
+                    </a>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="content-area">
+                <!-- Flash Messages Container -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-container">
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">
+                                    <span>
+                                        {% if category == 'success' %}<i class="fas fa-check-circle"></i>
+                                        {% elif category == 'danger' %}<i class="fas fa-triangle-exclamation"></i>
+                                        {% elif category == 'warning' %}<i class="fas fa-circle-exclamation"></i>
+                                        {% else %}<i class="fas fa-circle-info"></i>{% endif %}
+                                        {{ message }}
+                                    </span>
+                                    <button type="button" class="modal-close" onclick="this.parentElement.remove();">&times;</button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

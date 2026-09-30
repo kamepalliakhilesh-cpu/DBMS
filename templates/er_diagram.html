@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}ER Diagram & Relational Schema | Disaster Relief Resource Management System{% endblock %}
+{% block page_title_breadcrumb %}ER Diagram & Schema Architecture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-diagram-project" style="color: var(--accent-purple);"></i>
+            Relational Schema & ER Architecture
+        </h1>
+        <div class="page-subtitle">Exact Relational Database Specification (3NF Normalized, 6 Entities, Referential Integrity).</div>
+    </div>
+    <a href="{{ url_for('reports') }}" class="btn btn-primary">
+        <i class="fas fa-terminal"></i> Test SQL Queries
+    </a>
+</div>
+
+<!-- ER Relationship Summary Banner -->
+<div class="card-panel" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%); border-left: 4px solid var(--accent-cyan);">
+    <div style="font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">
+        <i class="fas fa-circle-nodes" style="color: var(--accent-cyan); margin-right: 0.5rem;"></i> Entity Relationship Cardinalities
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+        <div style="background: rgba(0,0,0,0.25); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <strong style="color: var(--accent-rose);">Disaster → Victim (1 : N)</strong><br>
+            One disaster event affects one or more victims.
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <strong style="color: var(--accent-cyan);">ReliefCenter → Resource (1 : N)</strong><br>
+            One relief centre stores and manages multiple resource items.
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <strong style="color: var(--accent-purple);">ReliefCenter → Volunteer (1 : N)</strong><br>
+            One relief centre coordinates multiple deployed volunteers.
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <strong style="color: var(--accent-amber);">Victim → Distribution (1 : N)</strong><br>
+            One registered victim can receive multiple resource deliveries.
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <strong style="color: var(--accent-emerald);">Resource → Distribution (1 : N)</strong><br>
+            One resource item appears in multiple distribution transactions.
+        </div>
+    </div>
+</div>
+
+<!-- 6 Schema Tables Grid -->
+<div class="er-grid">
+    <!-- 1. DISASTER -->
+    <div class="er-card">
+        <div class="er-card-header" style="border-top: 3px solid var(--accent-rose);">
+            <h4><i class="fas fa-house-crack" style="color: var(--accent-rose); margin-right: 6px;"></i> Disaster</h4>
+            <span class="badge badge-pk">Entity 1</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-pk">PK</span> Disaster_ID</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Type</span>
+            <span class="er-field-type">VARCHAR(50)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Location</span>
+            <span class="er-field-type">VARCHAR(100)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Date</span>
+            <span class="er-field-type">DATE</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Severity_Level</span>
+            <span class="er-field-type">VARCHAR(20)</span>
+        </div>
+    </div>
+
+    <!-- 2. VICTIM -->
+    <div class="er-card">
+        <div class="er-card-header" style="border-top: 3px solid var(--accent-amber);">
+            <h4><i class="fas fa-users" style="color: var(--accent-amber); margin-right: 6px;"></i> Victim</h4>
+            <span class="badge badge-pk">Entity 2</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-pk">PK</span> Victim_ID</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Name</span>
+            <span class="er-field-type">VARCHAR(100)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Age</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Contact</span>
+            <span class="er-field-type">VARCHAR(15)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Address</span>
+            <span class="er-field-type">VARCHAR(200)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-fk">FK</span> Disaster_ID</span>
+            <span class="er-field-type">INT → Disaster</span>
+        </div>
+    </div>
+
+    <!-- 3. RELIEF CENTER -->
+    <div class="er-card">
+        <div class="er-card-header" style="border-top: 3px solid var(--accent-cyan);">
+            <h4><i class="fas fa-tents" style="color: var(--accent-cyan); margin-right: 6px;"></i> ReliefCenter</h4>
+            <span class="badge badge-pk">Entity 3</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-pk">PK</span> Center_ID</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Name</span>
+            <span class="er-field-type">VARCHAR(100)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Location</span>
+            <span class="er-field-type">VARCHAR(150)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Capacity</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Contact</span>
+            <span class="er-field-type">VARCHAR(15)</span>
+        </div>
+    </div>
+
+    <!-- 4. RESOURCE -->
+    <div class="er-card">
+        <div class="er-card-header" style="border-top: 3px solid var(--accent-emerald);">
+            <h4><i class="fas fa-boxes-stacked" style="color: var(--accent-emerald); margin-right: 6px;"></i> Resource</h4>
+            <span class="badge badge-pk">Entity 4</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-pk">PK</span> Resource_ID</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Resource_Name</span>
+            <span class="er-field-type">VARCHAR(100)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Type</span>
+            <span class="er-field-type">VARCHAR(50)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Quantity</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-fk">FK</span> Center_ID</span>
+            <span class="er-field-type">INT → ReliefCenter</span>
+        </div>
+    </div>
+
+    <!-- 5. VOLUNTEER -->
+    <div class="er-card">
+        <div class="er-card-header" style="border-top: 3px solid var(--accent-purple);">
+            <h4><i class="fas fa-hands-holding-child" style="color: var(--accent-purple); margin-right: 6px;"></i> Volunteer</h4>
+            <span class="badge badge-pk">Entity 5</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-pk">PK</span> Volunteer_ID</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Name</span>
+            <span class="er-field-type">VARCHAR(100)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Phone</span>
+            <span class="er-field-type">VARCHAR(15)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Skill</span>
+            <span class="er-field-type">VARCHAR(100)</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-fk">FK</span> Center_ID</span>
+            <span class="er-field-type">INT → ReliefCenter</span>
+        </div>
+    </div>
+
+    <!-- 6. DISTRIBUTION -->
+    <div class="er-card">
+        <div class="er-card-header" style="border-top: 3px solid var(--primary-500);">
+            <h4><i class="fas fa-truck-ramp-box" style="color: var(--primary-500); margin-right: 6px;"></i> Distribution</h4>
+            <span class="badge badge-pk">Entity 6</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-pk">PK</span> Distribution_ID</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-fk">FK</span> Victim_ID</span>
+            <span class="er-field-type">INT → Victim</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name"><span class="badge badge-fk">FK</span> Resource_ID</span>
+            <span class="er-field-type">INT → Resource</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Quantity_Distributed</span>
+            <span class="er-field-type">INT</span>
+        </div>
+        <div class="er-field-row">
+            <span class="er-field-name">Date</span>
+            <span class="er-field-type">DATE</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

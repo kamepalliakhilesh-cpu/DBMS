@@ -205,27 +205,33 @@ def disasters_list():
 @app.route('/disasters/add', methods=['POST'])
 def disaster_add():
     try:
-        disaster_id = int(request.form.get('Disaster_ID'))
+        raw_id = request.form.get('Disaster_ID')
+        disaster_id = int(raw_id) if raw_id and raw_id.strip() else None
         dtype = request.form.get('Type', '').strip()
         location = request.form.get('Location', '').strip()
         date = request.form.get('Date') or None
         severity = request.form.get('Severity_Level', '').strip()
 
-        if not disaster_id or not dtype:
-            flash("Disaster ID and Type are required.", "warning")
+        if not dtype:
+            flash("Disaster Type is required.", "warning")
             return redirect(url_for('disasters_list'))
 
-        # Check existing PK
-        existing = execute_one("SELECT Disaster_ID FROM Disaster WHERE Disaster_ID = %s", (disaster_id,))
-        if existing:
-            flash(f"Disaster ID {disaster_id} already exists. Please choose a unique ID.", "warning")
-            return redirect(url_for('disasters_list'))
-
-        execute_update(
-            "INSERT INTO Disaster (Disaster_ID, Type, Location, Date, Severity_Level) VALUES (%s, %s, %s, %s, %s)",
-            (disaster_id, dtype, location, date, severity)
-        )
-        flash(f"Disaster '{dtype}' (ID: {disaster_id}) added successfully!", "success")
+        if disaster_id:
+            existing = execute_one("SELECT Disaster_ID FROM Disaster WHERE Disaster_ID = %s", (disaster_id,))
+            if existing:
+                flash(f"Disaster ID {disaster_id} already exists. Please choose a unique ID.", "warning")
+                return redirect(url_for('disasters_list'))
+            execute_update(
+                "INSERT INTO Disaster (Disaster_ID, Type, Location, Date, Severity_Level) VALUES (%s, %s, %s, %s, %s)",
+                (disaster_id, dtype, location, date, severity)
+            )
+            flash(f"Disaster '{dtype}' (ID: {disaster_id}) added successfully!", "success")
+        else:
+            execute_update(
+                "INSERT INTO Disaster (Type, Location, Date, Severity_Level) VALUES (%s, %s, %s, %s)",
+                (dtype, location, date, severity)
+            )
+            flash(f"Disaster '{dtype}' recorded successfully!", "success")
     except Exception as e:
         flash(f"Error adding disaster: {e}", "danger")
     return redirect(url_for('disasters_list'))
@@ -296,27 +302,34 @@ def victims_list():
 @app.route('/victims/add', methods=['POST'])
 def victim_add():
     try:
-        victim_id = int(request.form.get('Victim_ID'))
+        raw_id = request.form.get('Victim_ID')
+        victim_id = int(raw_id) if raw_id and raw_id.strip() else None
         name = request.form.get('Name', '').strip()
         age = int(request.form.get('Age')) if request.form.get('Age') else None
         contact = request.form.get('Contact', '').strip()
         address = request.form.get('Address', '').strip()
         disaster_id = int(request.form.get('Disaster_ID')) if request.form.get('Disaster_ID') else None
 
-        if not victim_id or not name:
-            flash("Victim ID and Name are required.", "warning")
+        if not name:
+            flash("Victim Name is required.", "warning")
             return redirect(url_for('victims_list'))
 
-        existing = execute_one("SELECT Victim_ID FROM Victim WHERE Victim_ID = %s", (victim_id,))
-        if existing:
-            flash(f"Victim ID {victim_id} already exists. Please choose a unique ID.", "warning")
-            return redirect(url_for('victims_list'))
-
-        execute_update(
-            "INSERT INTO Victim (Victim_ID, Name, Age, Contact, Address, Disaster_ID) VALUES (%s, %s, %s, %s, %s, %s)",
-            (victim_id, name, age, contact, address, disaster_id)
-        )
-        flash(f"Victim '{name}' (ID: {victim_id}) registered successfully.", "success")
+        if victim_id:
+            existing = execute_one("SELECT Victim_ID FROM Victim WHERE Victim_ID = %s", (victim_id,))
+            if existing:
+                flash(f"Victim ID {victim_id} already exists. Please choose a unique ID.", "warning")
+                return redirect(url_for('victims_list'))
+            execute_update(
+                "INSERT INTO Victim (Victim_ID, Name, Age, Contact, Address, Disaster_ID) VALUES (%s, %s, %s, %s, %s, %s)",
+                (victim_id, name, age, contact, address, disaster_id)
+            )
+            flash(f"Victim '{name}' (ID: {victim_id}) registered successfully.", "success")
+        else:
+            execute_update(
+                "INSERT INTO Victim (Name, Age, Contact, Address, Disaster_ID) VALUES (%s, %s, %s, %s, %s)",
+                (name, age, contact, address, disaster_id)
+            )
+            flash(f"Victim '{name}' registered successfully.", "success")
     except Exception as e:
         flash(f"Error adding victim: {e}", "danger")
     return redirect(url_for('victims_list'))
@@ -383,26 +396,33 @@ def relief_centers_list():
 @app.route('/relief-centers/add', methods=['POST'])
 def relief_center_add():
     try:
-        center_id = int(request.form.get('Center_ID'))
+        raw_id = request.form.get('Center_ID')
+        center_id = int(raw_id) if raw_id and raw_id.strip() else None
         name = request.form.get('Name', '').strip()
         location = request.form.get('Location', '').strip()
         capacity = int(request.form.get('Capacity')) if request.form.get('Capacity') else None
         contact = request.form.get('Contact', '').strip()
 
-        if not center_id or not name:
-            flash("Center ID and Name are required.", "warning")
+        if not name:
+            flash("Center Name is required.", "warning")
             return redirect(url_for('relief_centers_list'))
 
-        existing = execute_one("SELECT Center_ID FROM ReliefCenter WHERE Center_ID = %s", (center_id,))
-        if existing:
-            flash(f"Center ID {center_id} already exists. Please choose a unique ID.", "warning")
-            return redirect(url_for('relief_centers_list'))
-
-        execute_update(
-            "INSERT INTO ReliefCenter (Center_ID, Name, Location, Capacity, Contact) VALUES (%s, %s, %s, %s, %s)",
-            (center_id, name, location, capacity, contact)
-        )
-        flash(f"Relief Center '{name}' (ID: {center_id}) added successfully.", "success")
+        if center_id:
+            existing = execute_one("SELECT Center_ID FROM ReliefCenter WHERE Center_ID = %s", (center_id,))
+            if existing:
+                flash(f"Center ID {center_id} already exists. Please choose a unique ID.", "warning")
+                return redirect(url_for('relief_centers_list'))
+            execute_update(
+                "INSERT INTO ReliefCenter (Center_ID, Name, Location, Capacity, Contact) VALUES (%s, %s, %s, %s, %s)",
+                (center_id, name, location, capacity, contact)
+            )
+            flash(f"Relief Center '{name}' (ID: {center_id}) added successfully.", "success")
+        else:
+            execute_update(
+                "INSERT INTO ReliefCenter (Name, Location, Capacity, Contact) VALUES (%s, %s, %s, %s)",
+                (name, location, capacity, contact)
+            )
+            flash(f"Relief Center '{name}' established successfully.", "success")
     except Exception as e:
         flash(f"Error adding relief center: {e}", "danger")
     return redirect(url_for('relief_centers_list'))
@@ -479,26 +499,33 @@ def resources_list():
 @app.route('/resources/add', methods=['POST'])
 def resource_add():
     try:
-        resource_id = int(request.form.get('Resource_ID'))
+        raw_id = request.form.get('Resource_ID')
+        resource_id = int(raw_id) if raw_id and raw_id.strip() else None
         resource_name = request.form.get('Resource_Name', '').strip()
         rtype = request.form.get('Type', '').strip()
-        quantity = int(request.form.get('Quantity'))
+        quantity = int(request.form.get('Quantity')) if request.form.get('Quantity') else 0
         center_id = int(request.form.get('Center_ID')) if request.form.get('Center_ID') else None
 
-        if not resource_id or not resource_name or quantity is None:
-            flash("Resource ID, Name, and Quantity are required.", "warning")
+        if not resource_name:
+            flash("Resource Name is required.", "warning")
             return redirect(url_for('resources_list'))
 
-        existing = execute_one("SELECT Resource_ID FROM Resource WHERE Resource_ID = %s", (resource_id,))
-        if existing:
-            flash(f"Resource ID {resource_id} already exists. Please choose a unique ID.", "warning")
-            return redirect(url_for('resources_list'))
-
-        execute_update(
-            "INSERT INTO Resource (Resource_ID, Resource_Name, Type, Quantity, Center_ID) VALUES (%s, %s, %s, %s, %s)",
-            (resource_id, resource_name, rtype, quantity, center_id)
-        )
-        flash(f"Resource '{resource_name}' (ID: {resource_id}) registered with quantity {quantity}.", "success")
+        if resource_id:
+            existing = execute_one("SELECT Resource_ID FROM Resource WHERE Resource_ID = %s", (resource_id,))
+            if existing:
+                flash(f"Resource ID {resource_id} already exists. Please choose a unique ID.", "warning")
+                return redirect(url_for('resources_list'))
+            execute_update(
+                "INSERT INTO Resource (Resource_ID, Resource_Name, Type, Quantity, Center_ID) VALUES (%s, %s, %s, %s, %s)",
+                (resource_id, resource_name, rtype, quantity, center_id)
+            )
+            flash(f"Resource '{resource_name}' (ID: {resource_id}) registered with quantity {quantity}.", "success")
+        else:
+            execute_update(
+                "INSERT INTO Resource (Resource_Name, Type, Quantity, Center_ID) VALUES (%s, %s, %s, %s)",
+                (resource_name, rtype, quantity, center_id)
+            )
+            flash(f"Resource '{resource_name}' registered with quantity {quantity}.", "success")
     except Exception as e:
         flash(f"Error adding resource: {e}", "danger")
     return redirect(url_for('resources_list'))
@@ -592,26 +619,33 @@ def volunteers_list():
 @app.route('/volunteers/add', methods=['POST'])
 def volunteer_add():
     try:
-        volunteer_id = int(request.form.get('Volunteer_ID'))
+        raw_id = request.form.get('Volunteer_ID')
+        volunteer_id = int(raw_id) if raw_id and raw_id.strip() else None
         name = request.form.get('Name', '').strip()
         phone = request.form.get('Phone', '').strip()
         skill = request.form.get('Skill', '').strip()
         center_id = int(request.form.get('Center_ID')) if request.form.get('Center_ID') else None
 
-        if not volunteer_id or not name:
-            flash("Volunteer ID and Name are required.", "warning")
+        if not name:
+            flash("Volunteer Name is required.", "warning")
             return redirect(url_for('volunteers_list'))
 
-        existing = execute_one("SELECT Volunteer_ID FROM Volunteer WHERE Volunteer_ID = %s", (volunteer_id,))
-        if existing:
-            flash(f"Volunteer ID {volunteer_id} already exists. Please choose a unique ID.", "warning")
-            return redirect(url_for('volunteers_list'))
-
-        execute_update(
-            "INSERT INTO Volunteer (Volunteer_ID, Name, Phone, Skill, Center_ID) VALUES (%s, %s, %s, %s, %s)",
-            (volunteer_id, name, phone, skill, center_id)
-        )
-        flash(f"Volunteer '{name}' (ID: {volunteer_id}) enrolled successfully.", "success")
+        if volunteer_id:
+            existing = execute_one("SELECT Volunteer_ID FROM Volunteer WHERE Volunteer_ID = %s", (volunteer_id,))
+            if existing:
+                flash(f"Volunteer ID {volunteer_id} already exists. Please choose a unique ID.", "warning")
+                return redirect(url_for('volunteers_list'))
+            execute_update(
+                "INSERT INTO Volunteer (Volunteer_ID, Name, Phone, Skill, Center_ID) VALUES (%s, %s, %s, %s, %s)",
+                (volunteer_id, name, phone, skill, center_id)
+            )
+            flash(f"Volunteer '{name}' (ID: {volunteer_id}) enrolled successfully.", "success")
+        else:
+            execute_update(
+                "INSERT INTO Volunteer (Name, Phone, Skill, Center_ID) VALUES (%s, %s, %s, %s)",
+                (name, phone, skill, center_id)
+            )
+            flash(f"Volunteer '{name}' enrolled successfully.", "success")
     except Exception as e:
         flash(f"Error adding volunteer: {e}", "danger")
     return redirect(url_for('volunteers_list'))
@@ -693,21 +727,23 @@ def distributions_list():
 @app.route('/distributions/add', methods=['POST'])
 def distribution_add():
     try:
-        dist_id = int(request.form.get('Distribution_ID'))
+        raw_id = request.form.get('Distribution_ID')
+        dist_id = int(raw_id) if raw_id and raw_id.strip() else None
         victim_id = int(request.form.get('Victim_ID'))
         resource_id = int(request.form.get('Resource_ID'))
         quantity_distributed = int(request.form.get('Quantity_Distributed'))
         date = request.form.get('Date') or datetime.date.today().strftime('%Y-%m-%d')
         auto_deduct = request.form.get('auto_deduct') == '1'
 
-        if not dist_id or not victim_id or not resource_id or quantity_distributed <= 0:
-            flash("All fields and a valid quantity (>0) are required.", "warning")
+        if not victim_id or not resource_id or quantity_distributed <= 0:
+            flash("Victim, Resource and a valid quantity (>0) are required.", "warning")
             return redirect(request.referrer or url_for('distributions_list'))
 
-        existing = execute_one("SELECT Distribution_ID FROM Distribution WHERE Distribution_ID = %s", (dist_id,))
-        if existing:
-            flash(f"Distribution ID {dist_id} already exists. Please choose a unique ID.", "warning")
-            return redirect(request.referrer or url_for('distributions_list'))
+        if dist_id:
+            existing = execute_one("SELECT Distribution_ID FROM Distribution WHERE Distribution_ID = %s", (dist_id,))
+            if existing:
+                flash(f"Distribution ID {dist_id} already exists. Please choose a unique ID.", "warning")
+                return redirect(request.referrer or url_for('distributions_list'))
 
         # Check stock availability
         res = execute_one("SELECT Resource_Name, Quantity FROM Resource WHERE Resource_ID = %s", (resource_id,))
@@ -720,10 +756,16 @@ def distribution_add():
             return redirect(request.referrer or url_for('distributions_list'))
 
         # Record distribution
-        execute_update(
-            "INSERT INTO Distribution (Distribution_ID, Victim_ID, Resource_ID, Quantity_Distributed, Date) VALUES (%s, %s, %s, %s, %s)",
-            (dist_id, victim_id, resource_id, quantity_distributed, date)
-        )
+        if dist_id:
+            execute_update(
+                "INSERT INTO Distribution (Distribution_ID, Victim_ID, Resource_ID, Quantity_Distributed, Date) VALUES (%s, %s, %s, %s, %s)",
+                (dist_id, victim_id, resource_id, quantity_distributed, date)
+            )
+        else:
+            execute_update(
+                "INSERT INTO Distribution (Victim_ID, Resource_ID, Quantity_Distributed, Date) VALUES (%s, %s, %s, %s)",
+                (victim_id, resource_id, quantity_distributed, date)
+            )
 
         # Optionally deduct from resource inventory
         if auto_deduct:
@@ -732,7 +774,7 @@ def distribution_add():
                 (quantity_distributed, resource_id)
             )
 
-        flash(f"Distribution #{dist_id} recorded: {quantity_distributed} units of '{res['Resource_Name']}' distributed.", "success")
+        flash(f"Distribution recorded: {quantity_distributed} units of '{res['Resource_Name']}' distributed.", "success")
     except Exception as e:
         flash(f"Error creating distribution: {e}", "danger")
     return redirect(request.referrer or url_for('distributions_list'))

@@ -17,7 +17,7 @@ DROP TABLE IF EXISTS Disaster;
 
 -- 1. DISASTER TABLE
 CREATE TABLE Disaster (
-    Disaster_ID INT PRIMARY KEY,
+    Disaster_ID INT AUTO_INCREMENT PRIMARY KEY,
     Type VARCHAR(50) NOT NULL,
     Location VARCHAR(100),
     Date DATE,
@@ -26,7 +26,7 @@ CREATE TABLE Disaster (
 
 -- 2. VICTIM TABLE
 CREATE TABLE Victim (
-    Victim_ID INT PRIMARY KEY,
+    Victim_ID INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
     Age INT,
     Contact VARCHAR(15),
@@ -41,7 +41,7 @@ CREATE TABLE Victim (
 
 -- 3. RELIEF CENTER TABLE
 CREATE TABLE ReliefCenter (
-    Center_ID INT PRIMARY KEY,
+    Center_ID INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
     Location VARCHAR(150),
     Capacity INT,
@@ -50,7 +50,7 @@ CREATE TABLE ReliefCenter (
 
 -- 4. RESOURCE TABLE
 CREATE TABLE Resource (
-    Resource_ID INT PRIMARY KEY,
+    Resource_ID INT AUTO_INCREMENT PRIMARY KEY,
     Resource_Name VARCHAR(100) NOT NULL,
     Type VARCHAR(50),
     Quantity INT NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE Resource (
 
 -- 5. VOLUNTEER TABLE
 CREATE TABLE Volunteer (
-    Volunteer_ID INT PRIMARY KEY,
+    Volunteer_ID INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
     Phone VARCHAR(15),
     Skill VARCHAR(100),
@@ -78,7 +78,7 @@ CREATE TABLE Volunteer (
 
 -- 6. DISTRIBUTION TABLE
 CREATE TABLE Distribution (
-    Distribution_ID INT PRIMARY KEY,
+    Distribution_ID INT AUTO_INCREMENT PRIMARY KEY,
     Victim_ID INT,
     Resource_ID INT,
     Quantity_Distributed INT NOT NULL,

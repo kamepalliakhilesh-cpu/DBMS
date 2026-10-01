@@ -77,6 +77,16 @@ def check_connection():
         except Exception as e2:
             return False, str(e2)
 
+def _parse_sql_statements(sql_content):
+    """Clean comments and split SQL statements cleanly."""
+    statements = []
+    for raw_stmt in sql_content.split(";"):
+        lines = [line for line in raw_stmt.splitlines() if not line.strip().startswith("--") and not line.strip().startswith("#")]
+        cleaned = "\n".join(lines).strip()
+        if cleaned:
+            statements.append(cleaned)
+    return statements
+
 def init_db():
     """Execute schema.sql to create database and tables."""
     try:
@@ -93,12 +103,14 @@ def init_db():
         # Connect to DB and run schema statements
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            statements = [s.strip() for s in sql_content.split(";") if s.strip() and not s.strip().startswith("--")]
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+            statements = _parse_sql_statements(sql_content)
             for stmt in statements:
                 # Skip USE statements as we are already connected to the database
                 if stmt.upper().startswith("USE ") or stmt.upper().startswith("CREATE DATABASE"):
                     continue
                 cursor.execute(stmt)
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
         conn.close()
         return True, "Database schema initialized successfully."
     except Exception as e:
@@ -118,11 +130,13 @@ def seed_db():
 
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            statements = [s.strip() for s in sql_content.split(";") if s.strip() and not s.strip().startswith("--")]
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+            statements = _parse_sql_statements(sql_content)
             for stmt in statements:
                 if stmt.upper().startswith("USE "):
                     continue
                 cursor.execute(stmt)
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
         conn.close()
         return True, "Database seeded with sample records successfully."
     except Exception as e:

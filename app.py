@@ -1,6 +1,8 @@
 import os
+import io
+import csv
 import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from dotenv import load_dotenv
 from database.db import (
     check_connection, init_db, seed_db,
@@ -977,6 +979,235 @@ def api_run_sql():
         return jsonify({'success': True, 'results': result})
     else:
         return jsonify({'success': False, 'error': result}), 400
+
+
+# ----------------------------------------------------
+# 7.1 DISASTER & LOCATION INCIDENT REPORTS & CSV EXPORT
+# ----------------------------------------------------
+
+def get_disaster_report_data(disaster_id=None, location=None):
+    """Compile multi-table incident report dataset."""
+    d_query = """
+        SELECT D.*, COUNT(V.Victim_ID) AS Victim_Count
+        FROM Disaster D
+        LEFT JOIN Victim V ON D.Disaster_ID = V.Disaster_ID
+        WHERE 1=1
+    """
+    d_params = []
+    if disaster_id:
+        d_query += " AND D.Disaster_ID = %s"
+        d_params.append(disaster_id)
+    if location:
+        d_query += " AND D.Location LIKE %s"
+        d_params.append(f"%{location}%")
+    d_query += " GROUP BY D.Disaster_ID, D.Type, D.Location, D.Date, D.Severity_Level ORDER BY D.Date DESC"
+    disasters = execute_query(d_query, d_params)
+
+    matching_d_ids = [d['Disaster_ID'] for d in disasters]
+    victims = []
+    if matching_d_ids:
+        format_strings = ','.join(['%s'] * len(matching_d_ids))
+        v_query = f"""
+            SELECT V.*, D.Type AS Disaster_Type, D.Location AS Disaster_Location,
+                   COUNT(DISTINCT Dist.Distribution_ID) AS Distribution_Count
+            FROM Victim V
+            JOIN Disaster D ON V.Disaster_ID = D.Disaster_ID
+            LEFT JOIN Distribution Dist ON V.Victim_ID = Dist.Victim_ID
+            WHERE V.Disaster_ID IN ({format_strings})
+            GROUP BY V.Victim_ID, V.Name, V.Age, V.Contact, V.Address, V.Disaster_ID, D.Type, D.Location
+            ORDER BY V.Victim_ID ASC
+        """
+        victims = execute_query(v_query, matching_d_ids)
+
+    matching_v_ids = [v['Victim_ID'] for v in victims]
+    distributions = []
+    if matching_v_ids:
+        format_strings = ','.join(['%s'] * len(matching_v_ids))
+        dist_query = f"""
+            SELECT Dist.Distribution_ID, Dist.Victim_ID, Dist.Resource_ID, Dist.Quantity_Distributed, Dist.Date,
+                   V.Name AS Victim_Name, R.Resource_Name, R.Type AS Resource_Type
+            FROM Distribution Dist
+            JOIN Victim V ON Dist.Victim_ID = V.Victim_ID
+            JOIN Resource R ON Dist.Resource_ID = R.Resource_ID
+            WHERE Dist.Victim_ID IN ({format_strings})
+            ORDER BY Dist.Date DESC, Dist.Distribution_ID DESC
+        """
+        distributions = execute_query(dist_query, matching_v_ids)
+
+    c_query = "SELECT * FROM ReliefCenter WHERE 1=1"
+    c_params = []
+    if location:
+        c_query += " AND Location LIKE %s"
+        c_params.append(f"%{location}%")
+    centers = execute_query(c_query, c_params)
+
+    center_ids = [c['Center_ID'] for c in centers]
+    volunteers = []
+    if center_ids:
+        format_strings = ','.join(['%s'] * len(center_ids))
+        vol_query = f"""
+            SELECT V.*, C.Name AS Center_Name
+            FROM Volunteer V
+            LEFT JOIN ReliefCenter C ON V.Center_ID = C.Center_ID
+            WHERE V.Center_ID IN ({format_strings})
+            ORDER BY V.Name ASC
+        """
+        volunteers = execute_query(vol_query, center_ids)
+    elif not location and disasters:
+        volunteers = execute_query("""
+            SELECT V.*, C.Name AS Center_Name
+            FROM Volunteer V
+            LEFT JOIN ReliefCenter C ON V.Center_ID = C.Center_ID
+            ORDER BY V.Name ASC LIMIT 10
+        """)
+
+    total_aid_items = sum(d['Quantity_Distributed'] for d in distributions) if distributions else 0
+    report_stats = {
+        'total_disasters': len(disasters),
+        'total_victims': len(victims),
+        'total_aid_items': total_aid_items,
+        'total_centers': len(centers),
+        'total_volunteers': len(volunteers)
+    }
+
+    return {
+        'disasters': disasters,
+        'victims': victims,
+        'distributions': distributions,
+        'centers': centers,
+        'volunteers': volunteers,
+        'report_stats': report_stats
+    }
+
+@app.route('/reports/disaster')
+def disaster_reports():
+    disaster_id = request.args.get('disaster_id', '').strip()
+    location = request.args.get('location', '').strip()
+
+    all_disasters = execute_query("SELECT Disaster_ID, Type, Location, Date FROM Disaster ORDER BY Disaster_ID ASC")
+    selected_disaster = None
+    if disaster_id:
+        selected_disaster = execute_one("SELECT * FROM Disaster WHERE Disaster_ID = %s", (disaster_id,))
+
+    report_data = get_disaster_report_data(
+        disaster_id=disaster_id if disaster_id else None,
+        location=location if location else None
+    )
+
+    return render_template(
+        'disaster_reports.html',
+        all_disasters=all_disasters,
+        selected_disaster=selected_disaster,
+        selected_disaster_id=disaster_id,
+        selected_location=location,
+        disasters=report_data['disasters'],
+        victims=report_data['victims'],
+        distributions=report_data['distributions'],
+        centers=report_data['centers'],
+        volunteers=report_data['volunteers'],
+        report_stats=report_data['report_stats']
+    )
+
+@app.route('/reports/disaster/csv')
+def disaster_report_csv():
+    disaster_id = request.args.get('disaster_id', '').strip()
+    location = request.args.get('location', '').strip()
+
+    report_data = get_disaster_report_data(
+        disaster_id=disaster_id if disaster_id else None,
+        location=location if location else None
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # 1. Header Information
+    writer.writerow(["DISASTER RELIEF RESOURCE MANAGEMENT SYSTEM - SITUATION REPORT (SITREP)"])
+    writer.writerow(["Generated On", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+    writer.writerow(["Filter Criteria", f"Disaster ID: {disaster_id or 'All'} | Location: {location or 'All'}"])
+    writer.writerow([])
+
+    # 2. Executive Summary
+    stats = report_data['report_stats']
+    writer.writerow(["--- EXECUTIVE SUMMARY METRICS ---"])
+    writer.writerow(["Total Disaster Incidents", stats['total_disasters']])
+    writer.writerow(["Total Affected Victims", stats['total_victims']])
+    writer.writerow(["Total Aid Items Distributed", stats['total_aid_items']])
+    writer.writerow(["Relief Centers In Area", stats['total_centers']])
+    writer.writerow(["Deployed Volunteers", stats['total_volunteers']])
+    writer.writerow([])
+
+    # 3. Incident Table
+    writer.writerow(["--- 1. DISASTER INCIDENT DETAILS ---"])
+    writer.writerow(["Disaster ID", "Type", "Location", "Date", "Severity Level", "Victims Registered"])
+    for d in report_data['disasters']:
+        writer.writerow([d['Disaster_ID'], d['Type'], d['Location'], d['Date'], d['Severity_Level'], d.get('Victim_Count', 0)])
+    writer.writerow([])
+
+    # 4. Victims Table
+    writer.writerow(["--- 2. REGISTERED AFFECTED VICTIMS ---"])
+    writer.writerow(["Victim ID", "Full Name", "Age", "Contact Phone", "Address / Shelter", "Linked Disaster ID", "Disaster Type"])
+    for v in report_data['victims']:
+        writer.writerow([v['Victim_ID'], v['Name'], v.get('Age', ''), v.get('Contact', ''), v.get('Address', ''), v['Disaster_ID'], v.get('Disaster_Type', '')])
+    writer.writerow([])
+
+    # 5. Distributions Log
+    writer.writerow(["--- 3. AID & RELIEF DISTRIBUTION LOG ---"])
+    writer.writerow(["Distribution ID", "Victim Name", "Resource Name", "Category", "Quantity Distributed", "Date"])
+    for dist in report_data['distributions']:
+        writer.writerow([dist['Distribution_ID'], dist['Victim_Name'], dist['Resource_Name'], dist.get('Resource_Type', ''), dist['Quantity_Distributed'], dist['Date']])
+    writer.writerow([])
+
+    # 6. Relief Centers & Volunteers
+    writer.writerow(["--- 4. RELIEF CENTERS ---"])
+    writer.writerow(["Center ID", "Center Name", "Location", "Capacity", "Contact"])
+    for c in report_data['centers']:
+        writer.writerow([c['Center_ID'], c['Name'], c.get('Location', ''), c.get('Capacity', ''), c.get('Contact', '')])
+    writer.writerow([])
+
+    writer.writerow(["--- 5. VOLUNTEER PERSONNEL ---"])
+    writer.writerow(["Volunteer ID", "Name", "Phone", "Skill / Specialization", "Assigned Center"])
+    for vol in report_data['volunteers']:
+        writer.writerow([vol['Volunteer_ID'], vol['Name'], vol.get('Phone', ''), vol.get('Skill', ''), vol.get('Center_Name', '')])
+
+    csv_data = output.getvalue()
+    output.close()
+
+    filename = f"disaster_report_{disaster_id or 'all'}_{location or 'all'}_{datetime.date.today().strftime('%Y%m%d')}.csv"
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.route('/reports/disaster/print')
+def disaster_report_print():
+    disaster_id = request.args.get('disaster_id', '').strip()
+    location = request.args.get('location', '').strip()
+
+    report_data = get_disaster_report_data(
+        disaster_id=disaster_id if disaster_id else None,
+        location=location if location else None
+    )
+
+    filter_desc = []
+    if disaster_id:
+        filter_desc.append(f"Disaster Incident #{disaster_id}")
+    if location:
+        filter_desc.append(f"Location '{location}'")
+    report_title = " & ".join(filter_desc) if filter_desc else "All Disasters & Locations"
+
+    return render_template(
+        'disaster_report_print.html',
+        report_title=report_title,
+        now_timestamp=datetime.datetime.now().strftime("%d %b %Y, %I:%M %p"),
+        disasters=report_data['disasters'],
+        victims=report_data['victims'],
+        distributions=report_data['distributions'],
+        centers=report_data['centers'],
+        volunteers=report_data['volunteers'],
+        report_stats=report_data['report_stats']
+    )
 
 
 # ----------------------------------------------------

@@ -67,6 +67,10 @@
                 </a>
 
                 <div class="nav-section-label">DBMS Tools & Viva</div>
+                <a href="{{ url_for('disaster_reports') }}" class="nav-item {% if request.endpoint in ('disaster_reports', 'disaster_report_print') %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-file-contract"></i></span>
+                    <span>Disaster SitReps (Export)</span>
+                </a>
                 <a href="{{ url_for('reports') }}" class="nav-item {% if request.endpoint == 'reports' %}active{% endif %}">
                     <span class="nav-icon"><i class="fas fa-database"></i></span>
                     <span>SQL Reports (Q1-Q20)</span>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disaster Situation Report (SitRep) - {{ report_title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+            padding: 2.5rem;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 2.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .brand {
+            font-size: 20px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #0f172a;
+        }
+        .subbrand {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .report-meta {
+            text-align: right;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-critical { background: #fee2e2; color: #991b1b; }
+        .badge-high { background: #ffedd5; color: #9a3412; }
+        .badge-moderate { background: #fef3c7; color: #92400e; }
+        .badge-low { background: #dcfce7; color: #166534; }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .summary-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.85rem;
+            text-align: center;
+        }
+        .summary-val {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .summary-lbl {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        
+        h2 {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #1e293b;
+            margin: 1.5rem 0 0.75rem 0;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 0.35rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            font-size: 12px;
+        }
+        th {
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 2px solid #cbd5e1;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+        tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+        .print-actions {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+        .btn {
+            background: #0f172a;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn:hover {
+            background: #1e293b;
+        }
+        .footer {
+            margin-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1rem;
+            display: flex;
+            justify-content: space-between;
+            color: #94a3b8;
+            font-size: 11px;
+        }
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                border: none;
+                padding: 0;
+            }
+            .print-actions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-actions">
+        <button onclick="window.print()" class="btn">🖨️ Print / Save as PDF</button>
+        <button onclick="window.close()" class="btn" style="background: #64748b;">Close</button>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div>
+                <div class="brand">Disaster Relief Resource Management System</div>
+                <div class="subbrand">EMERGENCY SITUATION & ASSESSMENT REPORT (SITREP)</div>
+            </div>
+            <div class="report-meta">
+                <div><strong>Generated:</strong> {{ now_timestamp }}</div>
+                <div><strong>Report Filter:</strong> {{ report_title }}</div>
+                <div><strong>Classification:</strong> OFFICIAL RELIEF RECORD</div>
+            </div>
+        </div>
+
+        <!-- Executive Metrics Grid -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-val">{{ report_stats.total_disasters }}</div>
+                <div class="summary-lbl">Incidents</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-val">{{ report_stats.total_victims }}</div>
+                <div class="summary-lbl">Affected Victims</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-val">{{ report_stats.total_aid_items }}</div>
+                <div class="summary-lbl">Aid Units Dispatched</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-val">{{ report_stats.total_centers }}</div>
+                <div class="summary-lbl">Relief Hubs</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-val">{{ report_stats.total_volunteers }}</div>
+                <div class="summary-lbl">Active Volunteers</div>
+            </div>
+        </div>
+
+        <!-- 1. Incident Profile -->
+        <h2>1. Disaster Incident Profile</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Location / Region</th>
+                    <th>Date of Occurrence</th>
+                    <th>Severity Level</th>
+                    <th>Registered Victims</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in disasters %}
+                <tr>
+                    <td><strong>#{{ d.Disaster_ID }}</strong></td>
+                    <td><strong>{{ d.Type }}</strong></td>
+                    <td>{{ d.Location }}</td>
+                    <td>{{ d.Date }}</td>
+                    <td>
+                        <span class="badge {% if d.Severity_Level == 'Critical' %}badge-critical{% elif d.Severity_Level == 'High' %}badge-high{% elif d.Severity_Level == 'Moderate' %}badge-moderate{% else %}badge-low{% endif %}">
+                            {{ d.Severity_Level }}
+                        </span>
+                    </td>
+                    <td><strong>{{ d.Victim_Count or 0 }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 2. Registered Victims -->
+        <h2>2. Affected Persons & Evacuees Roster</h2>
+        {% if victims %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Victim ID</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Contact Phone</th>
+                    <th>Address / Shelter Location</th>
+                    <th>Linked Disaster</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in victims %}
+                <tr>
+                    <td>#{{ v.Victim_ID }}</td>
+                    <td><strong>{{ v.Name }}</strong></td>
+                    <td>{{ v.Age or 'N/A' }}</td>
+                    <td>{{ v.Contact or 'N/A' }}</td>
+                    <td>{{ v.Address or 'N/A' }}</td>
+                    <td>#{{ v.Disaster_ID }} {{ v.Disaster_Type }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color: #64748b; font-style: italic; margin-bottom: 1rem;">No victims recorded under this filter criteria.</p>
+        {% endif %}
+
+        <!-- 3. Aid Distributed -->
+        <h2>3. Relief Supplies & Aid Distribution Log</h2>
+        {% if distributions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Dist ID</th>
+                    <th>Recipient Victim</th>
+                    <th>Supplied Resource</th>
+                    <th>Category</th>
+                    <th>Quantity Dispatched</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dist in distributions %}
+                <tr>
+                    <td>#{{ dist.Distribution_ID }}</td>
+                    <td><strong>{{ dist.Victim_Name }}</strong></td>
+                    <td>{{ dist.Resource_Name }}</td>
+                    <td>{{ dist.Resource_Type or 'General' }}</td>
+                    <td><strong>{{ dist.Quantity_Distributed }} units</strong></td>
+                    <td>{{ dist.Date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color: #64748b; font-style: italic; margin-bottom: 1rem;">No distribution transactions recorded for this filter.</p>
+        {% endif %}
+
+        <!-- 4. Centers and Volunteers -->
+        <h2>4. Relief Centers & Response Personnel</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div>
+                <h3 style="font-size: 12px; margin-bottom: 0.5rem; color: #475569;">Designated Relief Hubs</h3>
+                {% if centers %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Center Name</th>
+                            <th>Location</th>
+                            <th>Capacity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in centers %}
+                        <tr>
+                            <td><strong>{{ c.Name }}</strong></td>
+                            <td>{{ c.Location }}</td>
+                            <td>{{ c.Capacity }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="color: #64748b; font-size: 11px;">No designated hubs recorded.</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <h3 style="font-size: 12px; margin-bottom: 0.5rem; color: #475569;">Assigned Volunteer Squad</h3>
+                {% if volunteers %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Volunteer</th>
+                            <th>Specialization</th>
+                            <th>Center</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in volunteers %}
+                        <tr>
+                            <td><strong>{{ v.Name }}</strong></td>
+                            <td>{{ v.Skill or 'General Aid' }}</td>
+                            <td>{{ v.Center_Name or 'Field' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="color: #64748b; font-size: 11px;">No volunteers assigned to this zone.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="footer">
+            <div>Disaster Relief Resource Management System (DBMS) &bull; Official Record</div>
+            <div>Page 1 of 1</div>
+        </div>
+    </div>
+</body>
+</html>

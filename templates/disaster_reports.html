@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Disaster Incident & Location Situation Reports | Disaster Relief Management{% endblock %}
+{% block page_title_breadcrumb %}Disaster Situation Reports (SitRep){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-file-contract" style="color: var(--accent-rose);"></i>
+            Disaster Incident & Location Situation Reports (SitRep)
+        </h1>
+        <div class="page-subtitle">
+            Generate and export comprehensive emergency relief assessments filtered by disaster incident or geographical location.
+        </div>
+    </div>
+    {% if selected_disaster or selected_location %}
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <a href="{{ url_for('disaster_report_csv', disaster_id=selected_disaster_id, location=selected_location) }}" class="btn btn-emerald">
+            <i class="fas fa-file-csv"></i> Download CSV Report
+        </a>
+        <a href="{{ url_for('disaster_report_print', disaster_id=selected_disaster_id, location=selected_location) }}" target="_blank" class="btn btn-primary">
+            <i class="fas fa-print"></i> Print / Save PDF
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filter Selection Card -->
+<div class="card-panel" style="margin-bottom: 2rem; border-color: var(--primary-500); box-shadow: var(--shadow-glow-blue);">
+    <div class="card-title">
+        <span><i class="fas fa-filter" style="color: var(--primary-500); margin-right: 0.5rem;"></i> Generate Incident Report</span>
+        <span style="font-size: 0.85rem; color: var(--text-muted);">Select a specific disaster or search by city/district</span>
+    </div>
+
+    <form method="GET" action="{{ url_for('disaster_reports') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) auto; gap: 1rem; align-items: flex-end;">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Filter by Disaster Event</label>
+            <select name="disaster_id" class="form-select">
+                <option value="">-- All Disasters / Select Incident --</option>
+                {% for d in all_disasters %}
+                <option value="{{ d.Disaster_ID }}" {% if selected_disaster_id == d.Disaster_ID|string %}selected{% endif %}>
+                    #{{ d.Disaster_ID }} - {{ d.Type }} ({{ d.Location }}, {{ d.Date|format_date }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Filter by Geographical Location / City</label>
+            <input type="text" name="location" class="form-control" placeholder="e.g. Kakinada, Vijayawada, Araku" value="{{ selected_location or '' }}">
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-magnifying-glass"></i> Generate Report
+            </button>
+            <a href="{{ url_for('disaster_reports') }}" class="btn btn-secondary">
+                <i class="fas fa-rotate-left"></i> Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+{% if selected_disaster or selected_location or disasters %}
+
+    <!-- Report Executive Summary Metrics -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+        <div class="stat-card" style="border-top: 3px solid var(--accent-rose);">
+            <div class="stat-icon" style="background: rgba(244, 63, 94, 0.15); color: var(--accent-rose);">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ report_stats.total_disasters }}</div>
+                <div class="stat-label">Disaster Events</div>
+            </div>
+        </div>
+
+        <div class="stat-card" style="border-top: 3px solid var(--accent-amber);">
+            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ report_stats.total_victims }}</div>
+                <div class="stat-label">Affected Victims</div>
+            </div>
+        </div>
+
+        <div class="stat-card" style="border-top: 3px solid var(--accent-emerald);">
+            <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
+                <i class="fas fa-boxes-packing"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ report_stats.total_aid_items }}</div>
+                <div class="stat-label">Aid Items Distributed</div>
+            </div>
+        </div>
+
+        <div class="stat-card" style="border-top: 3px solid var(--accent-cyan);">
+            <div class="stat-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan);">
+                <i class="fas fa-tents"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ report_stats.total_centers }}</div>
+                <div class="stat-label">Relief Centers</div>
+            </div>
+        </div>
+
+        <div class="stat-card" style="border-top: 3px solid var(--accent-purple);">
+            <div class="stat-icon" style="background: rgba(168, 85, 247, 0.15); color: var(--accent-purple);">
+                <i class="fas fa-hands-holding-child"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ report_stats.total_volunteers }}</div>
+                <div class="stat-label">Deployed Volunteers</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 1: Disaster Events Profile -->
+    <div class="card-panel" style="margin-bottom: 2rem;">
+        <div class="card-title">
+            <span><i class="fas fa-house-crack" style="color: var(--accent-rose); margin-right: 0.5rem;"></i> 1. Incident Profile</span>
+            <span class="badge badge-low">{{ disasters|length }} Incident(s)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Disaster Type</th>
+                        <th>Location</th>
+                        <th>Incident Date</th>
+                        <th>Severity Level</th>
+                        <th>Victims Registered</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in disasters %}
+                    <tr>
+                        <td><strong>#{{ d.Disaster_ID }}</strong></td>
+                        <td><span style="font-weight: 600; color: #fff;">{{ d.Type }}</span></td>
+                        <td><i class="fas fa-location-dot" style="color: var(--accent-rose); font-size: 0.8rem; margin-right: 0.25rem;"></i> {{ d.Location }}</td>
+                        <td>{{ d.Date|format_date }}</td>
+                        <td>
+                            {% if d.Severity_Level == 'Critical' %}
+                                <span class="badge badge-critical">Critical</span>
+                            {% elif d.Severity_Level == 'High' %}
+                                <span class="badge badge-high">High</span>
+                            {% elif d.Severity_Level == 'Moderate' %}
+                                <span class="badge badge-moderate">Moderate</span>
+                            {% else %}
+                                <span class="badge badge-low">{{ d.Severity_Level }}</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge badge-moderate">{{ d.Victim_Count or 0 }} Persons</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 2: Registered Affected Victims -->
+    <div class="card-panel" style="margin-bottom: 2rem;">
+        <div class="card-title">
+            <span><i class="fas fa-users" style="color: var(--accent-amber); margin-right: 0.5rem;"></i> 2. Registered Affected Victims</span>
+            <span class="badge badge-amber">{{ victims|length }} Records</span>
+        </div>
+        {% if victims %}
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>Victim ID</th>
+                        <th>Full Name</th>
+                        <th>Age</th>
+                        <th>Contact Phone</th>
+                        <th>Address / Shelter Location</th>
+                        <th>Linked Disaster</th>
+                        <th>Aid Transactions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in victims %}
+                    <tr>
+                        <td>#{{ v.Victim_ID }}</td>
+                        <td style="font-weight: 600; color: #fff;">{{ v.Name }}</td>
+                        <td>{{ v.Age or 'N/A' }}</td>
+                        <td><a href="tel:{{ v.Contact }}" style="color: var(--accent-cyan); text-decoration: none;">{{ v.Contact or 'N/A' }}</a></td>
+                        <td>{{ v.Address or 'N/A' }}</td>
+                        <td><span class="badge badge-low">#{{ v.Disaster_ID }} {{ v.Disaster_Type }}</span></td>
+                        <td><span class="badge badge-emerald">{{ v.Distribution_Count or 0 }} Packages</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            No victims registered under the selected criteria.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Section 3: Relief Aid Distributed -->
+    <div class="card-panel" style="margin-bottom: 2rem;">
+        <div class="card-title">
+            <span><i class="fas fa-truck-ramp-box" style="color: var(--accent-emerald); margin-right: 0.5rem;"></i> 3. Relief Aid & Supplies Dispatched</span>
+            <span class="badge badge-emerald">{{ distributions|length }} Distribution(s)</span>
+        </div>
+        {% if distributions %}
+        <div class="table-responsive">
+            <table class="table-custom">
+                <thead>
+                    <tr>
+                        <th>Dist ID</th>
+                        <th>Recipient Victim</th>
+                        <th>Supplied Resource</th>
+                        <th>Category</th>
+                        <th>Quantity Dispatched</th>
+                        <th>Distribution Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dist in distributions %}
+                    <tr>
+                        <td>#{{ dist.Distribution_ID }}</td>
+                        <td style="font-weight: 600; color: #fff;">{{ dist.Victim_Name }}</td>
+                        <td><span style="color: var(--accent-cyan); font-weight: 500;">{{ dist.Resource_Name }}</span></td>
+                        <td><span class="badge badge-low">{{ dist.Resource_Type or 'General' }}</span></td>
+                        <td><strong>{{ dist.Quantity_Distributed }}</strong> units</td>
+                        <td>{{ dist.Date|format_date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            No aid distributions recorded for the selected filter.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Section 4: Relief Centers & Deployed Volunteers -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 1.5rem;">
+        <div class="card-panel">
+            <div class="card-title">
+                <span><i class="fas fa-tents" style="color: var(--accent-cyan); margin-right: 0.5rem;"></i> 4. Area Relief Centers</span>
+                <span class="badge badge-cyan">{{ centers|length }} Centers</span>
+            </div>
+            {% if centers %}
+            <div class="table-responsive">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Center</th>
+                            <th>Location</th>
+                            <th>Capacity</th>
+                            <th>Contact</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in centers %}
+                        <tr>
+                            <td style="font-weight: 600; color: #fff;">{{ c.Name }}</td>
+                            <td>{{ c.Location }}</td>
+                            <td><span class="badge badge-moderate">{{ c.Capacity }} Persons</span></td>
+                            <td><a href="tel:{{ c.Contact }}" style="color: var(--accent-cyan);">{{ c.Contact or 'N/A' }}</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                No designated relief centers in this specific area.
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card-panel">
+            <div class="card-title">
+                <span><i class="fas fa-hands-holding-child" style="color: var(--accent-purple); margin-right: 0.5rem;"></i> 5. Assigned Volunteer Personnel</span>
+                <span class="badge badge-purple">{{ volunteers|length }} Personnel</span>
+            </div>
+            {% if volunteers %}
+            <div class="table-responsive">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Volunteer Name</th>
+                            <th>Skill / Role</th>
+                            <th>Contact</th>
+                            <th>Assigned Hub</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in volunteers %}
+                        <tr>
+                            <td style="font-weight: 600; color: #fff;">{{ v.Name }}</td>
+                            <td><span class="badge badge-low">{{ v.Skill or 'General Aid' }}</span></td>
+                            <td><a href="tel:{{ v.Phone }}" style="color: var(--accent-cyan);">{{ v.Phone or 'N/A' }}</a></td>
+                            <td>{{ v.Center_Name or 'Field Ops' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                No volunteers directly linked to this location.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+{% else %}
+    <div class="card-panel" style="text-align: center; padding: 4rem 2rem;">
+        <i class="fas fa-file-magnifying-glass" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+        <h3 style="color: #fff; margin-bottom: 0.5rem;">Select an Incident or Location to Generate Report</h3>
+        <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto;">
+            Use the filter above to select any registered disaster event (e.g. Cyclone in Kakinada) or enter a district/city name to compile a comprehensive situational report.
+        </p>
+    </div>
+{% endif %}
+{% endblock %}

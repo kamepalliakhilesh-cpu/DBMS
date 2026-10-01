@@ -79,7 +79,13 @@
                             {{ d.Severity_Level or 'Standard' }}
                         </span>
                     </td>
-                    <td style="text-align: right;">
+                    <td style="text-align: right; white-space: nowrap;">
+                        <a href="{{ url_for('disaster_reports', disaster_id=d.Disaster_ID) }}" 
+                           class="btn btn-secondary btn-sm"
+                           style="color: var(--accent-cyan); border-color: rgba(6, 182, 212, 0.3);"
+                           title="View Incident SitRep & Export CSV">
+                            <i class="fas fa-file-contract"></i> SitRep
+                        </a>
                         <button class="btn btn-secondary btn-sm" 
                                 data-modal-open="edit-disaster-modal"
                                 data-edit-data='{{ d|tojson }}'
